@@ -1,0 +1,6 @@
+{
+  "appHost": {
+    "path": "CarPilot.AppHost/CarPilot.AppHost.csproj"
+  },
+  "channel": "stable"
+}
