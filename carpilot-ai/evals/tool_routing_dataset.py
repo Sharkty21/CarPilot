@@ -47,6 +47,17 @@ EVAL_DATASET = {
             },
             "outputs": {
                 "expected_tools_any_of": ["search_web"],
+                "notes": "Query should include make/model/year, not vehicle_id.",
+            },
+        },
+        {
+            "inputs": {
+                "question": "What's my car worth?",
+                "vehicle_id": "veh-demo",
+            },
+            "outputs": {
+                "expected_tools_any_of": ["get_vehicle_info", "search_web"],
+                "notes": "Fetch garage profile first, then web search with year/make/model/mileage in query.",
             },
         },
         {

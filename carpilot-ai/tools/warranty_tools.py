@@ -4,25 +4,27 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
+from typing import Annotated, Optional
 
 from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
 
+from agent.state import AgentState
 from clients.api_client import get_api_client
 
 logger = logging.getLogger(__name__)
 
 
 @tool
-async def get_warranty_info(vehicle_id: str) -> str:
-    """Fetch the structured warranty / service-contract information for a vehicle.
+async def get_warranty_info(state: Annotated[AgentState, InjectedState]) -> str:
+    """Fetch the structured warranty / service-contract information for the current vehicle.
 
     Use when the user asks about coverage level, deductible, expiration, provider,
     or transferability stored in the garage (not uploaded PDFs).
 
-    Args:
-        vehicle_id: Target vehicle id.
+    The current vehicle is selected automatically — do not pass a vehicle id.
     """
+    vehicle_id = state["vehicle_id"]
     try:
         vehicle = await get_api_client().get_vehicle(vehicle_id)
         if vehicle is None:
@@ -35,7 +37,7 @@ async def get_warranty_info(vehicle_id: str) -> str:
 
 @tool
 async def update_warranty_info(
-    vehicle_id: str,
+    state: Annotated[AgentState, InjectedState],
     provider: Optional[str] = None,
     plan_name: Optional[str] = None,
     contract_number: Optional[str] = None,
@@ -49,13 +51,14 @@ async def update_warranty_info(
     transferable: Optional[bool] = None,
     notes: Optional[str] = None,
 ) -> str:
-    """Replace the vehicle's warranty fields via the CarPilot API.
+    """Replace the current vehicle's warranty fields via the CarPilot API.
 
     IMPORTANT: Before calling this tool, confirm with the user in natural language
     that they want to overwrite their warranty information. Do not call until they agree.
 
+    The current vehicle is selected automatically — do not pass a vehicle id.
+
     Args:
-        vehicle_id: Target vehicle id.
         provider: Warranty provider name.
         plan_name: Plan or product name.
         contract_number: Contract / policy number.
@@ -69,6 +72,7 @@ async def update_warranty_info(
         transferable: Whether the warranty can transfer to a buyer.
         notes: Free-form notes.
     """
+    vehicle_id = state["vehicle_id"]
     try:
         client = get_api_client()
         vehicle = await client.get_vehicle(vehicle_id)

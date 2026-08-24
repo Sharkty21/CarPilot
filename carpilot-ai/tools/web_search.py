@@ -14,12 +14,20 @@ logger = logging.getLogger(__name__)
 def search_web(query: str) -> str:
     """Search the open web for general automotive information.
 
-    Use for recalls, market comparisons, typical service intervals, TSBs, and
-    other knowledge that is not specific to the owner's uploaded documents or
+    Use for recalls, market values, resale estimates, typical service intervals,
+    TSBs, and other public knowledge — NOT for the owner's uploaded documents or
     structured garage records.
 
+    This tool accepts only a search query. It does NOT accept vehicle_id or any
+    garage identifier. Call get_vehicle_info first when you need year, make, model,
+    trim, or mileage, then put those details into the query string.
+
+    Example queries:
+    - "2021 Honda Civic EX resale value 45000 miles"
+    - "2019 Toyota Camry brake recall"
+
     Args:
-        query: Search query suitable for a web search engine.
+        query: Natural-language search query for a web search engine.
     """
     try:
         from duckduckgo_search import DDGS

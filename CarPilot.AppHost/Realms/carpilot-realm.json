@@ -111,6 +111,13 @@
       },
       "protocolMappers": [
         {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-sub-mapper",
+          "consentRequired": false,
+          "config": {}
+        },
+        {
           "name": "username",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-property-mapper",

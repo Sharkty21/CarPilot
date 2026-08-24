@@ -74,9 +74,13 @@ const ChatMessageBubble = ({ message, onOpenRecord }: ChatMessageBubbleProps) =>
           )}
 
           <div className="whitespace-pre-wrap">
-            {renderContent(message.content)}
-            {message.streaming && (
-              <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-blue-400 align-middle" />
+            {message.streaming && !message.content.trim() ? (
+              <span className="inline-flex items-center gap-2 text-slate-500">
+                <Sparkles className="size-3.5 shrink-0 animate-thinking-blink text-blue-500" />
+                <span>Thinking...</span>
+              </span>
+            ) : (
+              renderContent(message.content)
             )}
           </div>
         </div>

@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Annotated
 
 from langchain_core.tools import tool
 from langchain_openai import OpenAIEmbeddings
+from langgraph.prebuilt import InjectedState
 from langsmith import traceable
 
+from agent.state import AgentState
 from clients.db import similarity_search
 from config import get_settings
 
@@ -26,18 +29,23 @@ def _embed_query(query: str) -> list[float]:
 
 
 @tool
-async def search_maintenance_documents(query: str, vehicle_id: str) -> str:
-    """Search the owner's uploaded maintenance, insurance, and warranty documents for a vehicle.
+async def search_maintenance_documents(
+    query: str,
+    state: Annotated[AgentState, InjectedState],
+) -> str:
+    """Search the owner's uploaded maintenance, insurance, and warranty documents.
 
-    Use this when the user asks about their own records, receipts, service history,
+    Use when the user asks about their own records, receipts, service history,
     policy details found in uploaded PDFs, or anything that would appear in their
     garage documents. Returns the top matching redacted text chunks with source
     metadata (filename, document date, bucket key reference).
 
+    The current vehicle is selected automatically — do not pass a vehicle id.
+
     Args:
         query: Natural-language search query.
-        vehicle_id: The vehicle whose document index should be searched.
     """
+    vehicle_id = state["vehicle_id"]
     try:
         settings = get_settings()
         embedding = _embed_query(query)

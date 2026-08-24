@@ -48,7 +48,7 @@ def test_tools_condition_after_tool_result_still_depends_on_latest_ai():
             tool_calls=[
                 {
                     "name": "get_insurance_info",
-                    "args": {"vehicle_id": "veh-1"},
+                    "args": {},
                     "id": "call-2",
                     "type": "tool_call",
                 }

@@ -23,12 +23,14 @@ from tools.maintenance_tools import (
     update_maintenance_record,
 )
 from tools.vector_search import search_maintenance_documents
+from tools.vehicle_tools import get_vehicle_info
 from tools.warranty_tools import get_warranty_info, update_warranty_info
 from tools.web_search import search_web
 
 logger = logging.getLogger(__name__)
 
 TOOLS = [
+    get_vehicle_info,
     search_maintenance_documents,
     search_web,
     create_maintenance_record,
@@ -62,12 +64,15 @@ def build_graph(checkpointer: AsyncPostgresSaver | None = None):
         if not messages or not isinstance(messages[0], SystemMessage):
             messages = [SystemMessage(content=SYSTEM_PROMPT), *messages]
 
-        # Remind the model of the active vehicle context without leaking into tools.
+        # Active garage context — vehicle-scoped tools receive vehicle_id automatically.
         context = SystemMessage(
             content=(
-                f"Current user_id={state.get('user_id')}; "
+                f"Active garage context: user_id={state.get('user_id')}, "
                 f"vehicle_id={state.get('vehicle_id')}. "
-                "Use this vehicle_id for all vehicle-scoped tool calls."
+                "Garage-scoped tools (maintenance, insurance, warranty, documents, "
+                "get_vehicle_info) apply to this vehicle automatically. "
+                "search_web accepts only a query string — never pass vehicle_id; "
+                "call get_vehicle_info first, then include year/make/model/mileage in the query."
             )
         )
         # Insert context after the system prompt.

@@ -12,6 +12,8 @@ using Microsoft.IdentityModel.Tokens;
 
 using Pgvector.EntityFrameworkCore;
 
+using System.Security.Claims;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
@@ -48,13 +50,47 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 NameClaimType = "preferred_username",
                 RoleClaimType = "roles",
             };
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    if (context.Principal?.Identity is not ClaimsIdentity identity)
+                    {
+                        return;
+                    }
+
+                    if (identity.HasClaim(c => c.Type is "sub" or ClaimTypes.NameIdentifier))
+                    {
+                        return;
+                    }
+
+                    var email = identity.FindFirst("email")?.Value
+                        ?? identity.FindFirst(ClaimTypes.Email)?.Value;
+                    if (string.IsNullOrWhiteSpace(email))
+                    {
+                        return;
+                    }
+
+                    var db = context.HttpContext.RequestServices.GetRequiredService<CarPilotDbContext>();
+                    var userId = await db.Users.AsNoTracking()
+                        .Where(u => u.Email == email)
+                        .Select(u => u.Id)
+                        .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                    if (userId != Guid.Empty)
+                    {
+                        identity.AddClaim(new Claim("sub", userId.ToString()));
+                    }
+                },
+            };
         });
 
 builder.Services.AddAuthorization();
 
 builder.Services.AddHttpClient("keycloak", client =>
 {
-    client.BaseAddress = new Uri("http://keycloak");
+    // Prefer HTTPS (Keycloak’s published endpoint), fall back to HTTP.
+    client.BaseAddress = new Uri("https+http://keycloak");
 });
 
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
@@ -69,7 +105,7 @@ builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 
 builder.Services.AddHttpClient("carpilot-ai", client =>
 {
-    client.BaseAddress = new Uri("http://carpilot-ai");
+    client.BaseAddress = new Uri("https+http://carpilot-ai");
     client.Timeout = TimeSpan.FromMinutes(5);
 })
 // SSE streams must not go through the standard resilience pipeline (buffering/retries).

@@ -66,7 +66,7 @@ public sealed class KeycloakAuthService(
             ["client_secret"] = _options.ClientSecret,
             ["username"] = email,
             ["password"] = password,
-            ["scope"] = "openid profile email offline_access",
+            ["scope"] = "openid profile email",
         });
 
         var response = await client.PostAsync(
@@ -223,19 +223,7 @@ public sealed class KeycloakAuthService(
             cancellationToken);
     }
 
-    private HttpClient CreateClient()
-    {
-        var client = httpClientFactory.CreateClient("keycloak");
-        if (client.BaseAddress is null)
-        {
-            var authority = configuration["services:keycloak:https:0"]
-                ?? configuration["services:keycloak:http:0"]
-                ?? throw new InvalidOperationException("Keycloak service endpoint is not configured.");
-            client.BaseAddress = new Uri(authority.TrimEnd('/') + "/");
-        }
-
-        return client;
-    }
+    private HttpClient CreateClient() => httpClientFactory.CreateClient("keycloak");
 
     private async Task<string> GetClientCredentialsTokenAsync(CancellationToken cancellationToken)
     {
