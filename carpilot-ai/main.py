@@ -27,11 +27,15 @@ logger = logging.getLogger(__name__)
 
 def _configure_langsmith() -> None:
     settings = get_settings()
-    os.environ["LANGCHAIN_TRACING_V2"] = (
-        "true" if settings.langchain_tracing_v2 else "false"
-    )
+    tracing = "true" if settings.langchain_tracing_v2 else "false"
+    os.environ["LANGSMITH_TRACING"] = tracing
+    os.environ["LANGCHAIN_TRACING_V2"] = tracing
+    os.environ["LANGSMITH_ENDPOINT"] = settings.langsmith_endpoint
+    os.environ["LANGCHAIN_ENDPOINT"] = settings.langsmith_endpoint
     if settings.langchain_api_key:
+        os.environ["LANGSMITH_API_KEY"] = settings.langchain_api_key
         os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+    os.environ["LANGSMITH_PROJECT"] = settings.langsmith_project
     os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
     if settings.openai_api_key:
         os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ACA Postgres has no TLS. Keep only params both asyncpg and psycopg accept
@@ -58,14 +58,21 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(validation_alias="DATABASE_URL")
-    langchain_api_key: str = Field(default="", validation_alias="LANGCHAIN_API_KEY")
+    langchain_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("LANGSMITH_API_KEY", "LANGCHAIN_API_KEY"),
+    )
     langchain_project: str = Field(
-        default="carpilot-ai-dev",
-        validation_alias="LANGCHAIN_PROJECT",
+        default="Carpilot",
+        validation_alias=AliasChoices("LANGSMITH_PROJECT", "LANGCHAIN_PROJECT"),
     )
     langchain_tracing_v2: bool = Field(
         default=True,
-        validation_alias="LANGCHAIN_TRACING_V2",
+        validation_alias=AliasChoices("LANGSMITH_TRACING", "LANGCHAIN_TRACING_V2"),
+    )
+    langsmith_endpoint: str = Field(
+        default="https://api.smith.langchain.com",
+        validation_alias=AliasChoices("LANGSMITH_ENDPOINT", "LANGCHAIN_ENDPOINT"),
     )
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4o-mini", validation_alias="OPENAI_MODEL")
@@ -115,7 +122,7 @@ class Settings(BaseSettings):
 
     @property
     def langsmith_project(self) -> str:
-        """Prefer explicit LANGCHAIN_PROJECT; otherwise derive from environment."""
+        """Prefer explicit LANGSMITH_PROJECT / LANGCHAIN_PROJECT; otherwise derive from environment."""
         if self.langchain_project:
             return self.langchain_project
         return f"carpilot-ai-{self.environment}"

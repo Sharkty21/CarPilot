@@ -38,7 +38,7 @@ On startup, if `veh-1` has no rows in `ai_document_registry`, the service ingest
 
 All configuration is via `pydantic-settings` (no production defaults baked into code):
 
-`DATABASE_URL`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`, `LANGCHAIN_TRACING_V2`, `OPENAI_API_KEY`, `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `DOTNET_API_BASE_URL`, `ENVIRONMENT`.
+`DATABASE_URL`, `LANGSMITH_API_KEY` (or `LANGCHAIN_API_KEY`), `LANGSMITH_PROJECT` (or `LANGCHAIN_PROJECT`), `LANGSMITH_TRACING` (or `LANGCHAIN_TRACING_V2`), `LANGSMITH_ENDPOINT`, `OPENAI_API_KEY`, `STORAGE_ENDPOINT`, `STORAGE_ACCESS_KEY`, `STORAGE_SECRET_KEY`, `STORAGE_BUCKET`, `DOTNET_API_BASE_URL`, `ENVIRONMENT`.
 
 ## LangSmith — finding a user's conversation
 
@@ -58,7 +58,7 @@ config = {
 
 **How to find a conversation in the LangSmith UI**
 
-1. Open the project named by `LANGCHAIN_PROJECT` (e.g. `carpilot-ai-dev` or `carpilot-ai-prod`).
+1. Open the project named by `LANGSMITH_PROJECT` (default `Carpilot`).
 2. Filter runs by tag `carpilot-agent` and environment tag (`dev` / `prod`).
 3. Add a metadata filter: `user_id` = the customer's id, and optionally `vehicle_id`.
 4. Open a matching run — tool calls appear as child spans under the parent agent run (vector search, web search, CRUD tools).
