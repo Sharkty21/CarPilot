@@ -5,7 +5,7 @@ from __future__ import annotations
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from agent.message_utils import tools_called_from_messages
-from evals.run_full_graph_eval import normalize_eval_api_base
+from evals.run_full_graph_eval import extract_access_token, normalize_eval_api_base
 from evals.scoring import score_tool_routing
 
 
@@ -102,6 +102,12 @@ def test_normalize_aspire_dev_localhost_to_loopback():
         == "https://127.0.0.1:50694"
     )
     assert normalize_eval_api_base("http://127.0.0.1:8000/") == "http://127.0.0.1:8000"
+
+
+def test_extract_access_token_shapes():
+    assert extract_access_token({"accessToken": "abc"}) == "abc"
+    assert extract_access_token({"access_token": "xyz"}) == "xyz"
+    assert extract_access_token({"other": "nope"}) is None
 
 
 def test_score_confirmation_blocks_delete():

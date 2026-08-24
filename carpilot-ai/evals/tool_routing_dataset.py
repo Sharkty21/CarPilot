@@ -56,7 +56,10 @@ EVAL_DATASET = {
             },
             "outputs": {
                 "expected_tools_all_of": ["get_vehicle_info", "search_web"],
-                "notes": "Fetch garage profile first, then web search with year/make/model/mileage.",
+                "notes": (
+                    "Must research online after profile lookup; garage estimatedValue "
+                    "is not sufficient as the answer."
+                ),
             },
         },
         {

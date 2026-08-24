@@ -71,8 +71,9 @@ def build_graph(checkpointer: AsyncPostgresSaver | None = None):
                 f"vehicle_id={state.get('vehicle_id')}. "
                 "Garage-scoped tools (maintenance, insurance, warranty, documents, "
                 "get_vehicle_info) apply to this vehicle automatically. "
-                "search_web accepts only a query string — never pass vehicle_id; "
-                "call get_vehicle_info first, then include year/make/model/mileage in the query."
+                "search_web accepts only a query string — never pass vehicle_id. "
+                "For worth/price/resale/trade-in: get_vehicle_info then search_web with "
+                "year/make/model/trim/mileage; do not treat estimatedValue as live market truth."
             )
         )
         # Insert context after the system prompt.

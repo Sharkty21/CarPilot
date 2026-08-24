@@ -3,13 +3,19 @@ Full-graph (Option B) LangSmith evaluation against a live carpilot-ai /chat API.
 
 Usage (from carpilot-ai/, with Aspire or another stack serving /chat):
 
-    set EVAL_API_BASE_URL=http://127.0.0.1:8000
+    set EVAL_API_BASE_URL=http://127.0.0.1:<carpilot-ai-port>
+    set EVAL_SERVER_BASE_URL=http://127.0.0.1:<server-port>
     set LANGSMITH_API_KEY=...
     set LANGSMITH_PROJECT=Carpilot
     uv run python -m evals.run_full_graph_eval
 
+Garage tools (get_vehicle_info, insurance, maintenance, …) call the .NET API with
+the caller's JWT. The app forwards your browser token; this runner auto-logs in as
+the demo user unless EVAL_AUTH_BEARER is set.
+
 Optional:
-    EVAL_AUTH_BEARER=<jwt>     forwarded as Authorization for garage tools
+    EVAL_AUTH_BEARER=<jwt>     skip demo login; forward this token instead
+    EVAL_DEMO_EMAIL / EVAL_DEMO_PASSWORD   default john.smith@carpilot.demo / demo
     EVAL_USER_ID=<uuid>        default: demo seed user
     EVAL_VEHICLE_ID=veh-1      overrides example vehicle_id when set
     EVAL_SYNC_ONLY=1           upload dataset only, do not run experiments
@@ -33,15 +39,17 @@ from evals.tool_routing_dataset import EVAL_DATASET, get_examples
 
 # Aspire / GarageSeedData demo owner
 _DEFAULT_USER_ID = "a0000000-0000-4000-8000-000000000001"
+_DEFAULT_DEMO_EMAIL = "john.smith@carpilot.demo"
+_DEFAULT_DEMO_PASSWORD = "demo"
 _DATASET_NAME = EVAL_DATASET["name"]
 
 
-def normalize_eval_api_base(raw: str) -> str:
+def normalize_eval_api_base(raw: str, *, env_name: str = "EVAL_API_BASE_URL") -> str:
     """Rewrite Aspire *.dev.localhost hosts to 127.0.0.1 (Windows DNS cannot resolve them)."""
     cleaned = raw.strip().rstrip("/")
     parsed = urlparse(cleaned)
     if not parsed.scheme or not parsed.netloc:
-        raise ValueError(f"EVAL_API_BASE_URL must be an absolute URL, got: {raw!r}")
+        raise ValueError(f"{env_name} must be an absolute URL, got: {raw!r}")
     host = (parsed.hostname or "").lower()
     if host == "localhost" or host.endswith(".localhost"):
         port = parsed.port
@@ -55,19 +63,33 @@ def normalize_eval_api_base(raw: str) -> str:
     return cleaned
 
 
-def _api_base() -> str:
-    raw = os.environ.get("EVAL_API_BASE_URL", "").strip().rstrip("/")
+def _require_base_url(env_name: str, hint: str) -> str:
+    raw = os.environ.get(env_name, "").strip().rstrip("/")
     if not raw:
         raise SystemExit(
-            "Missing EVAL_API_BASE_URL. Use the Aspire carpilot-ai endpoint, e.g.\n"
-            "  $env:EVAL_API_BASE_URL = 'http://127.0.0.1:50694'\n"
-            "Dashboard URLs like https://carpilot-ai-carpilot.dev.localhost:PORT "
-            "are rewritten to 127.0.0.1 automatically."
+            f"Missing {env_name}. {hint}\n"
+            "Aspire dashboard hosts (*.dev.localhost) are rewritten to 127.0.0.1 automatically."
         )
     try:
-        return normalize_eval_api_base(raw)
+        return normalize_eval_api_base(raw, env_name=env_name)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
+
+
+def _api_base() -> str:
+    return _require_base_url(
+        "EVAL_API_BASE_URL",
+        "Use the Aspire carpilot-ai HTTP endpoint, e.g. "
+        "$env:EVAL_API_BASE_URL = 'http://127.0.0.1:50694'",
+    )
+
+
+def _server_base() -> str:
+    return _require_base_url(
+        "EVAL_SERVER_BASE_URL",
+        "Use the Aspire server HTTP endpoint (not carpilot-ai), e.g. "
+        "$env:EVAL_SERVER_BASE_URL = 'http://127.0.0.1:5xxxx'",
+    )
 
 
 def _loopback(url: str) -> bool:
@@ -120,6 +142,69 @@ def resolve_reachable_api_base(api_base: str) -> str:
         "Windows cannot resolve *.dev.localhost in Python; the runner maps those hosts "
         "to 127.0.0.1 automatically."
     )
+
+
+def extract_access_token(payload: dict[str, Any]) -> str | None:
+    """Accept AuthResponse (accessToken) or TokenResponse (access_token) shapes."""
+    for key in ("accessToken", "access_token", "AccessToken"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def login_demo_user(server_base: str) -> str:
+    """POST /api/auth/login as the seeded demo user; return the access token."""
+    email = os.environ.get("EVAL_DEMO_EMAIL", _DEFAULT_DEMO_EMAIL).strip() or _DEFAULT_DEMO_EMAIL
+    password = (
+        os.environ.get("EVAL_DEMO_PASSWORD", _DEFAULT_DEMO_PASSWORD).strip()
+        or _DEFAULT_DEMO_PASSWORD
+    )
+    candidates = [server_base]
+    if _loopback(server_base):
+        other = "http" if urlparse(server_base).scheme == "https" else "https"
+        alt = _with_scheme(server_base, other)
+        if alt not in candidates:
+            candidates.append(alt)
+
+    errors: list[str] = []
+    for base in candidates:
+        url = urljoin(base + "/", "api/auth/login")
+        try:
+            with _http_client(30.0, base) as http:
+                response = http.post(url, json={"email": email, "password": password})
+                response.raise_for_status()
+                data = response.json()
+            if not isinstance(data, dict):
+                raise RuntimeError(f"Unexpected login payload type: {type(data)}")
+            token = extract_access_token(data)
+            if not token:
+                raise RuntimeError(f"Login response missing access token keys: {list(data)}")
+            print(f"Demo login OK as {email} via {base}")
+            return token
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{url}: {exc}")
+
+    detail = "\n".join(errors)
+    raise SystemExit(
+        f"Demo login failed (garage tools need a JWT):\n{detail}\n\n"
+        "Set EVAL_SERVER_BASE_URL to the Aspire server endpoint, or set EVAL_AUTH_BEARER "
+        "to a token from the browser after logging in."
+    )
+
+
+def resolve_auth_bearer() -> str:
+    """Prefer EVAL_AUTH_BEARER; otherwise log in as the demo garage owner."""
+    explicit = os.environ.get("EVAL_AUTH_BEARER", "").strip()
+    if explicit:
+        token = (
+            explicit[7:].strip()
+            if explicit.lower().startswith("bearer ")
+            else explicit
+        )
+        print("Using EVAL_AUTH_BEARER for garage API tool calls")
+        return token
+    return login_demo_user(_server_base())
 
 
 def _configure_langsmith_env() -> None:
@@ -181,21 +266,19 @@ def sync_dataset(client: Client) -> Any:
     return dataset
 
 
-def _build_target(api_base: str):
+def _build_target(api_base: str, auth_bearer: str):
     user_id = os.environ.get("EVAL_USER_ID", _DEFAULT_USER_ID).strip() or _DEFAULT_USER_ID
     vehicle_override = os.environ.get("EVAL_VEHICLE_ID", "").strip()
-    auth = os.environ.get("EVAL_AUTH_BEARER", "").strip()
     timeout = float(os.environ.get("EVAL_HTTP_TIMEOUT", "120"))
 
     def target(inputs: dict[str, Any]) -> dict[str, Any]:
         vehicle_id = vehicle_override or inputs.get("vehicle_id") or "veh-1"
         question = inputs["question"]
         thread_id = f"eval-{uuid.uuid4().hex}"
-        headers: dict[str, str] = {"Content-Type": "application/json"}
-        if auth:
-            headers["Authorization"] = (
-                auth if auth.lower().startswith("bearer ") else f"Bearer {auth}"
-            )
+        headers: dict[str, str] = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {auth_bearer}",
+        }
 
         url = urljoin(api_base + "/", "chat")
         payload = {
@@ -234,11 +317,11 @@ def tool_routing_evaluator(run: Any, example: Any) -> EvaluationResult:
     )
 
 
-def run_experiment(client: Client, api_base: str) -> None:
+def run_experiment(client: Client, api_base: str, auth_bearer: str) -> None:
     api_base = resolve_reachable_api_base(api_base)
     print(f"Running full-graph eval against {api_base} …")
     results = evaluate(
-        _build_target(api_base),
+        _build_target(api_base, auth_bearer),
         data=_DATASET_NAME,
         evaluators=[tool_routing_evaluator],
         experiment_prefix="full-graph-tool-routing",
@@ -246,6 +329,7 @@ def run_experiment(client: Client, api_base: str) -> None:
             "mode": "full_graph_http",
             "api_base": api_base,
             "dataset": _DATASET_NAME,
+            "auth": "demo_login_or_bearer",
         },
         client=client,
         max_concurrency=1,
@@ -281,7 +365,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     api_base = _api_base()
-    run_experiment(client, api_base)
+    auth_bearer = resolve_auth_bearer()
+    run_experiment(client, api_base, auth_bearer)
     return 0
 
 

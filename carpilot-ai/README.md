@@ -96,19 +96,20 @@ Dataset source: `evals/tool_routing_dataset.py` → LangSmith dataset `carpilot-
 
 ```bash
 # PowerShell
-# Prefer loopback + the Aspire carpilot-ai port (not webfrontend).
-# Dashboard hosts like https://carpilot-ai-carpilot.dev.localhost:50694 also work;
+# Prefer loopback + Aspire ports (not webfrontend).
+# Dashboard hosts like https://carpilot-ai-carpilot.dev.localhost:PORT also work;
 # the runner rewrites them to 127.0.0.1 because Windows DNS cannot resolve *.dev.localhost.
-$env:EVAL_API_BASE_URL = "http://127.0.0.1:50694"
+$env:EVAL_API_BASE_URL = "http://127.0.0.1:50694"      # carpilot-ai
+$env:EVAL_SERVER_BASE_URL = "http://127.0.0.1:5xxxx"   # .NET server (login + garage API)
 $env:LANGSMITH_API_KEY = "<key from smith.langchain.com/settings>"
 $env:LANGSMITH_PROJECT = "Carpilot"
-# Optional — needed if garage CRUD tools require a user JWT:
+# Auth: runner logs in as john.smith@carpilot.demo / demo unless you set:
 # $env:EVAL_AUTH_BEARER = "<access token>"
-# $env:EVAL_USER_ID = "a0000000-0000-4000-8000-000000000001"
-# $env:EVAL_VEHICLE_ID = "veh-1"
 
 uv run python -m evals.run_full_graph_eval
 ```
+
+**Why auth matters:** Chat in the app forwards your JWT so tools like `get_vehicle_info` can call the .NET API. Without a token, the eval graph still *calls* the tool, but the API returns 401 and the model answers with an error — and cases like “What's my car worth?” fail `expected_tools_all_of` because `search_web` never runs after a failed vehicle lookup.
 
 Upload dataset only (no LLM / API calls):
 
