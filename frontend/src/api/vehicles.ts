@@ -5,7 +5,6 @@ import type { OwnedVehicle } from "@/src/types/vehicle";
 import { apiClient } from "./client";
 import { queryKeys } from "./queryKeys";
 import type {
-  AddDocumentsBody,
   DocumentSection,
   FinanceBody,
   InsuranceBody,
@@ -96,15 +95,21 @@ export const useAddDocuments = () =>
     ({
       vehicleId,
       section,
-      documents,
+      files,
     }: {
       vehicleId: string;
       section: DocumentSection;
-    } & AddDocumentsBody) =>
-      apiClient.post<OwnedVehicle>(
-        `/vehicles/${vehicleId}/documents/${section}`,
-        { documents }
-      )
+      files: File[];
+    }) => {
+      const form = new FormData();
+      for (const file of files) {
+        form.append("files", file);
+      }
+      return apiClient.postForm<OwnedVehicle>(
+        `/vehicles/${vehicleId}/documents/${section}/upload`,
+        form
+      );
+    }
   );
 
 export const useRemoveDocument = () =>

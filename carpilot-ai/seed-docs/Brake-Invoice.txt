@@ -1,0 +1,32 @@
+Vasquez Auto Repair — Invoice #V-44821
+Date of Service: May 2, 2026
+Customer: John Smith
+Vehicle: 2021 Toyota RAV4 XLE Premium AWD
+Odometer: 44,120 miles
+
+Work performed:
+- Replaced front brake pads (ceramic)
+- Resurfaced front rotors (both sides)
+- Installed anti-rattle shims and hardware kit
+- Road test and bedding procedure
+
+Parts:
+- Front ceramic pad set .......................... $148.00
+- Hardware / shim kit ............................ $24.50
+- Brake cleaner and lubricant .................... $8.90
+
+Labor:
+- Front brake service (pads + resurface) ......... $390.00
+- Road test / bedding ............................ $41.00
+
+Subtotal: $612.40
+Tax: included
+Total: $612.40
+
+Parts and labor warranty: 12 months / 12,000 miles workmanship guarantee.
+If squeal or vibration returns within the warranty window, return for a
+no-charge inspection. Ask for verification of anti-rattle clips/shims and
+rotor runout with a dial indicator (Toyota max runout 0.05 mm).
+
+Shop: Vasquez Auto Repair
+Advisor: Luis Vasquez

@@ -1,4 +1,5 @@
 import { LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -8,13 +9,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { initialsOf } from "@/src/lib/format";
+import { queryClient } from "@/src/api";
+import { useAuth } from "@/src/contexts/AuthProvider";
 import { useGarage } from "@/src/contexts/garageContext";
+import { ROUTES } from "@/src/lib/constants";
+import { initialsOf } from "@/src/lib/format";
 
 const AccountMenu = () => {
   const { user } = useGarage();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
+
+  const onLogout = () => {
+    logout();
+    queryClient.clear();
+    navigate(ROUTES.LOGIN, { replace: true });
+  };
 
   return (
     <DropdownMenu>
@@ -45,7 +57,7 @@ const AccountMenu = () => {
           </div>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={onLogout}>
           <LogOut />
           Log out
         </DropdownMenuItem>

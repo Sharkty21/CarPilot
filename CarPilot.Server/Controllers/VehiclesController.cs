@@ -2,13 +2,15 @@ using CarPilot.Server.Contracts;
 using CarPilot.Server.Models;
 using CarPilot.Server.Services;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarPilot.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/vehicles")]
-public class VehiclesController(IGarageService garage) : GarageControllerBase
+public class VehiclesController(IGarageService garage, IFileUploadService uploads) : GarageControllerBase
 {
     [HttpGet]
     public ActionResult<IReadOnlyList<OwnedVehicle>> GetVehicles() => Ok(garage.GetVehicles());
@@ -44,6 +46,23 @@ public class VehiclesController(IGarageService garage) : GarageControllerBase
         garage.AddDocuments(vehicleId, section, request.Documents) is { } vehicle
             ? Ok(vehicle)
             : VehicleNotFound(vehicleId);
+
+    [HttpPost("{vehicleId}/documents/{section}/upload")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<ActionResult<OwnedVehicle>> UploadDocuments(
+        string vehicleId,
+        DocumentSection section,
+        [FromForm] List<IFormFile> files,
+        CancellationToken cancellationToken)
+    {
+        if (files is null || files.Count == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "At least one file is required." });
+        }
+
+        var vehicle = await uploads.UploadVehicleDocumentsAsync(vehicleId, section, files, cancellationToken);
+        return vehicle is null ? VehicleNotFound(vehicleId) : Ok(vehicle);
+    }
 
     [HttpDelete("{vehicleId}/documents/{section}/{documentId}")]
     public ActionResult<OwnedVehicle> RemoveDocument(

@@ -10,7 +10,6 @@ import SectionCard from "@/src/components/common/SectionCard";
 import { cn } from "@/lib/utils";
 import { useGarage } from "@/src/contexts/garageContext";
 import {
-  filesToDocuments,
   formatCurrency,
   formatDate,
   formatNumber,
@@ -73,7 +72,7 @@ const WarrantySection = ({ vehicle }: WarrantySectionProps) => {
   const { warranty } = vehicle;
 
   const addWarrantyFiles = (files: File[]) =>
-    addDocuments("warranty", filesToDocuments(files));
+    addDocuments("warranty", files);
 
   const covered = hasWarranty(warranty);
   const status = warrantyStatus(warranty, vehicle.mileage);

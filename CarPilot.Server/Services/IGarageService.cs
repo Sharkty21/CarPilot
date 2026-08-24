@@ -22,6 +22,7 @@ public interface IGarageService
 
     IReadOnlyList<MaintenanceRecord>? GetMaintenanceRecords(string vehicleId);
     MaintenanceRecord? SaveMaintenanceRecord(string vehicleId, string recordId, MaintenanceRecord record);
+    bool? DeleteMaintenanceRecord(string vehicleId, string recordId);
 
     IReadOnlyList<Conversation>? GetConversations(string vehicleId);
     Conversation? SaveConversation(string vehicleId, string conversationId, Conversation conversation);

@@ -1,0 +1,24 @@
+Bluepoint Mutual — Personal Auto Policy Declarations
+Policy Number: BPM-4471-88231
+Named Insured: John Smith
+Vehicle: 2021 Toyota RAV4 XLE Premium AWD
+VIN on file: JTMRWRFV8LD512873
+License Plate: 8JVK294
+
+Coverage Period: January 1, 2026 through December 31, 2026
+Coverage Type: Full coverage (liability, collision, comprehensive)
+Monthly Premium: $142.50
+Deductible: $500 collision / $500 comprehensive
+
+Agent: Dana Whitfield
+Agent Phone: (555) 214-8890
+Claims Hotline: (555) 214-8800
+
+Important notes:
+- Glass / windshield chip repairs are covered with $0 deductible when repaired
+  rather than replaced, and do not affect premium.
+- Roadside assistance is included up to 3 service calls per policy year.
+- Rental reimbursement pays up to $40/day for a maximum of 30 days after a
+  covered collision or comprehensive loss.
+- The policy renews automatically on December 31, 2026 unless cancelled in writing
+  30 days before renewal.

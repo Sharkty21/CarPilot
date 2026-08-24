@@ -1,11 +1,13 @@
 using CarPilot.Server.Models;
 using CarPilot.Server.Services;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarPilot.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/vehicles/{vehicleId}/maintenance-records")]
 public class MaintenanceRecordsController(IGarageService garage) : GarageControllerBase
 {
@@ -22,4 +24,13 @@ public class MaintenanceRecordsController(IGarageService garage) : GarageControl
         garage.SaveMaintenanceRecord(vehicleId, recordId, record) is { } saved
             ? Ok(saved)
             : VehicleNotFound(vehicleId);
+
+    [HttpDelete("{recordId}")]
+    public IActionResult DeleteRecord(string vehicleId, string recordId) =>
+        garage.DeleteMaintenanceRecord(vehicleId, recordId) switch
+        {
+            null => VehicleNotFound(vehicleId),
+            false => NotFound(new { message = $"Maintenance record '{recordId}' was not found." }),
+            true => NoContent(),
+        };
 }

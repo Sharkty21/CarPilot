@@ -21,7 +21,7 @@ import {
   type WarrantyBody,
 } from "@/src/api";
 import type { Conversation } from "@/src/types/chat";
-import type { MaintenanceRecord, VehicleDocument } from "@/src/types/vehicle";
+import type { MaintenanceRecord } from "@/src/types/vehicle";
 
 import { GarageContext, type GarageContextValue } from "./garageContext";
 
@@ -99,9 +99,9 @@ const GarageProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const addDocuments = useCallback(
-    async (section: DocumentSection, documents: VehicleDocument[]) => {
-      if (!selectedVehicleId) return;
-      await postDocuments({ vehicleId: selectedVehicleId, section, documents });
+    async (section: DocumentSection, files: File[]) => {
+      if (!selectedVehicleId || files.length === 0) return;
+      await postDocuments({ vehicleId: selectedVehicleId, section, files });
     },
     [selectedVehicleId, postDocuments]
   );

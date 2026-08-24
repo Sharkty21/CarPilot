@@ -1,0 +1,30 @@
+Northside Toyota Service — Invoice #71204
+Date of Service: July 12, 2026
+Customer: John Smith
+Vehicle: 2021 Toyota RAV4 XLE Premium AWD
+Odometer: 46,800 miles
+License Plate: 8JVK294
+
+Services performed:
+1. Full synthetic oil change (0W-16) — includes oil filter
+2. Tire rotation (all four positions)
+3. Multi-point inspection — notes: front brake pads at 55% remaining
+
+Parts:
+- Toyota Genuine 0W-16 oil (5.0 qt) .............. $42.00
+- Oil filter 90915-YZZN1 ......................... $12.50
+
+Labor:
+- Oil change and filter .......................... $28.00
+- Tire rotation .................................. $7.49
+
+Subtotal: $89.99
+Tax: included
+Total due: $89.99
+
+Technician notes:
+Next oil service due at 56,800 miles or July 2027, whichever comes first.
+Recommended interval for full synthetic on this platform is 10,000 miles
+or 12 months.
+Shop: Northside Toyota Service, 4100 River Road
+Workmanship warranty: 12 months / 12,000 miles on labor.

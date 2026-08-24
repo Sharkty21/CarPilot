@@ -1,11 +1,13 @@
 using CarPilot.Server.Models;
 using CarPilot.Server.Services;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CarPilot.Server.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/vehicles/{vehicleId}/conversations")]
 public class ConversationsController(IGarageService garage) : GarageControllerBase
 {

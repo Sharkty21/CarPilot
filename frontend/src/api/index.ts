@@ -28,7 +28,8 @@ export {
   useSaveConversation,
 } from "./conversations";
 
-export { askAssistant, useAskAssistant } from "./assistant";
+export { streamAssistant } from "./assistant";
+export type { AssistantStreamEvent } from "./assistant";
 
 export type {
   AddDocumentsBody,

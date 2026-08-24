@@ -23,8 +23,9 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-## Visual Studio
+## Visual Studio / VS Code
 .vs/
+.vscode/
 *.VC.db
 *.VC.VC.opendb
 
@@ -45,6 +46,8 @@ pnpm-debug.log*
 .env
 .env.local
 .env.*.local
+*.local.json
+appsettings.*.local.json
 *.pfx
 
 ## OS

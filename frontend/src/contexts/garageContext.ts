@@ -12,7 +12,6 @@ import type {
   MaintenanceRecord,
   OwnedVehicle,
   UserProfile,
-  VehicleDocument,
 } from "@/src/types/vehicle";
 
 export type { DocumentSection } from "@/src/api";
@@ -37,10 +36,7 @@ export interface GarageContextValue {
   updateFinance: (finance: FinanceBody) => Promise<void>;
   updateInsurance: (insurance: InsuranceBody) => Promise<void>;
   updateWarranty: (warranty: WarrantyBody) => Promise<void>;
-  addDocuments: (
-    section: DocumentSection,
-    documents: VehicleDocument[]
-  ) => Promise<void>;
+  addDocuments: (section: DocumentSection, files: File[]) => Promise<void>;
   removeDocument: (
     section: DocumentSection,
     documentId: string

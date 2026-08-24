@@ -11,17 +11,15 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { useAskAssistant } from "@/src/api";
+import { streamAssistant } from "@/src/api/assistant";
 import { UPLOAD_ACCEPT } from "@/src/lib/constants";
 import { useGarage } from "@/src/contexts/garageContext";
 import { describeVehicle, newId } from "@/src/lib/format";
-import type { ChatAttachment, ChatMessage, Conversation } from "@/src/types/chat";
+import type { ChatAttachment, ChatCitation, ChatMessage, Conversation } from "@/src/types/chat";
 
 import ChatMessageBubble from "./ChatMessageBubble";
 import ShareAgentLink from "./ShareAgentLink";
-import { summarize, tokenize } from "./streaming";
-
-const TOKEN_INTERVAL_MS = 22;
+import { summarize } from "./streaming";
 
 interface ChatDialogProps {
   open: boolean;
@@ -38,7 +36,6 @@ const ChatDialog = ({
   onOpenRecord,
 }: ChatDialogProps) => {
   const { selectedVehicle, saveConversation } = useGarage();
-  const { mutateAsync: askAssistant } = useAskAssistant();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -47,7 +44,7 @@ const ChatDialog = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string>(newId("conv"));
 
   // Read through a ref so `send` keeps a stable identity and can't retrigger the
@@ -56,10 +53,8 @@ const ChatDialog = ({
   vehicleRef.current = selectedVehicle;
 
   const stopStreaming = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    abortRef.current?.abort();
+    abortRef.current = null;
     setStreaming(false);
     setMessages((current) =>
       current.map((message) =>
@@ -97,6 +92,7 @@ const ChatDialog = ({
         content: "",
         createdAt: new Date().toISOString(),
         streaming: true,
+        citations: [],
       };
 
       setMessages((current) => [...current, userMessage, assistantMessage]);
@@ -112,14 +108,72 @@ const ChatDialog = ({
           )
         );
 
-      let answer;
+      abortRef.current?.abort();
+      const abort = new AbortController();
+      abortRef.current = abort;
+
+      let content = "";
+      const citations: ChatCitation[] = [];
+      const seenCitationKeys = new Set<string>();
+
       try {
-        answer = await askAssistant({
-          vehicleId: vehicle.id,
-          question,
-          attachmentNames: files.map((file) => file.name),
-        });
+        await streamAssistant(
+          vehicle.id,
+          {
+            question,
+            attachmentNames: files.map((file) => file.name),
+            threadId: conversationId,
+          },
+          {
+            signal: abort.signal,
+            onEvent: (event) => {
+              if (conversationIdRef.current !== conversationId) return;
+
+              if (event.type === "token") {
+                content += event.content;
+                updateAssistant({ content, streaming: true });
+                return;
+              }
+
+              if (event.type === "citation" && event.citation) {
+                const key = `${event.citation.kind}:${event.citation.label}:${event.citation.recordId ?? ""}`;
+                if (!seenCitationKeys.has(key)) {
+                  seenCitationKeys.add(key);
+                  citations.push(event.citation);
+                  updateAssistant({ citations: [...citations] });
+                }
+                return;
+              }
+
+              if (event.type === "error") {
+                updateAssistant({
+                  content:
+                    content ||
+                    event.content ||
+                    "I couldn't reach CarPilot just now. Please try again.",
+                  streaming: false,
+                });
+                setStreaming(false);
+                return;
+              }
+
+              if (event.type === "done") {
+                updateAssistant({
+                  content: content || "I didn't get a response back — try asking again.",
+                  citations: citations.length ? citations : undefined,
+                  streaming: false,
+                });
+                setStreaming(false);
+              }
+            },
+          }
+        );
       } catch (error) {
+        if (abort.signal.aborted) {
+          updateAssistant({ content: content || "Stopped.", streaming: false });
+          setStreaming(false);
+          return;
+        }
         updateAssistant({
           content:
             error instanceof Error
@@ -128,33 +182,13 @@ const ChatDialog = ({
           streaming: false,
         });
         setStreaming(false);
-        return;
-      }
-
-      // The window was reset or closed while the request was in flight.
-      if (conversationIdRef.current !== conversationId) return;
-
-      updateAssistant({ citations: answer.citations });
-
-      const tokens = tokenize(answer.content);
-      let index = 0;
-      timerRef.current = window.setInterval(() => {
-        index += 1;
-        const partial = tokens.slice(0, index).join("");
-        const done = index >= tokens.length;
-
-        updateAssistant({ content: partial, streaming: !done });
-
-        if (done) {
-          if (timerRef.current !== null) {
-            window.clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          setStreaming(false);
+      } finally {
+        if (abortRef.current === abort) {
+          abortRef.current = null;
         }
-      }, TOKEN_INTERVAL_MS);
+      }
     },
-    [askAssistant]
+    []
   );
 
   // Reset for a fresh conversation each time the window opens, then fire the seed prompt.

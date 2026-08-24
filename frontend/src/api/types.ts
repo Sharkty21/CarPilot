@@ -33,6 +33,7 @@ export interface AddDocumentsBody {
 export interface AskAssistantBody {
   question: string;
   attachmentNames: string[];
+  threadId?: string;
 }
 
 export interface AssistantAnswer {

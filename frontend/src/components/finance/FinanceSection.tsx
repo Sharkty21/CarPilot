@@ -7,7 +7,6 @@ import DocumentsGrid from "@/src/components/common/DocumentsGrid";
 import SectionCard from "@/src/components/common/SectionCard";
 import { useGarage } from "@/src/contexts/garageContext";
 import {
-  filesToDocuments,
   formatCurrency,
   formatDate,
   formatNumber,
@@ -29,7 +28,7 @@ const FinanceSection = ({ vehicle }: FinanceSectionProps) => {
   const { finance } = vehicle;
 
   const addFinanceFiles = (files: File[]) =>
-    addDocuments("finance", filesToDocuments(files));
+    addDocuments("finance", files);
 
   const schedule = useMemo(
     () =>

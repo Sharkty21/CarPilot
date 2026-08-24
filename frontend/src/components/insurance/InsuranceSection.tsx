@@ -6,7 +6,7 @@ import DetailItem from "@/src/components/common/DetailItem";
 import DocumentsGrid from "@/src/components/common/DocumentsGrid";
 import SectionCard from "@/src/components/common/SectionCard";
 import { useGarage } from "@/src/contexts/garageContext";
-import { filesToDocuments, formatCurrency, formatDate } from "@/src/lib/format";
+import { formatCurrency, formatDate } from "@/src/lib/format";
 import type { OwnedVehicle } from "@/src/types/vehicle";
 
 import InsuranceEditSheet from "./InsuranceEditSheet";
@@ -21,7 +21,7 @@ const InsuranceSection = ({ vehicle }: InsuranceSectionProps) => {
   const { insurance } = vehicle;
 
   const addInsuranceFiles = (files: File[]) =>
-    addDocuments("insurance", filesToDocuments(files));
+    addDocuments("insurance", files);
 
   const details = [
     { label: "Insurer", value: insurance.insurer },

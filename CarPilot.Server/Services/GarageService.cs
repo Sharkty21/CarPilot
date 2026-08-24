@@ -184,6 +184,12 @@ public class GarageService(IGarageRepository repository) : IGarageService
         return record;
     }
 
+    public bool? DeleteMaintenanceRecord(string vehicleId, string recordId)
+    {
+        if (repository.FindVehicle(vehicleId) is null) return null;
+        return repository.DeleteMaintenanceRecord(vehicleId, recordId);
+    }
+
     public IReadOnlyList<Conversation>? GetConversations(string vehicleId) =>
         repository.FindVehicle(vehicleId) is null
             ? null

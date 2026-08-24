@@ -102,10 +102,22 @@ public class AskAssistantRequest
 {
     public string Question { get; set; } = string.Empty;
     public List<string> AttachmentNames { get; set; } = [];
+    /// <summary>LangGraph thread id — keeps multi-turn tool context in the AI checkpointer.</summary>
+    public string? ThreadId { get; set; }
 }
 
 public class AssistantAnswer
 {
     public string Content { get; set; } = string.Empty;
     public List<ChatCitation> Citations { get; set; } = [];
+}
+
+/// <summary>One SSE payload from carpilot-ai, proxied to the browser.</summary>
+public class AssistantStreamEvent
+{
+    public string Type { get; set; } = string.Empty;
+    public string? Content { get; set; }
+    public string? Name { get; set; }
+    public string? Status { get; set; }
+    public ChatCitation? Citation { get; set; }
 }

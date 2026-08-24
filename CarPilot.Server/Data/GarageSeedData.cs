@@ -3,8 +3,8 @@ using CarPilot.Server.Models;
 namespace CarPilot.Server.Data;
 
 /// <summary>
-/// Stands in for a database until one exists. Every request reads through the
-/// repository, so swapping this for real storage does not touch the API surface.
+/// Production demo garage content for John Smith. Applied by <see cref="DbInitializer"/>
+/// on every environment (not Development-only).
 /// </summary>
 internal static class GarageSeedData
 {
@@ -13,8 +13,8 @@ internal static class GarageSeedData
 
     public static UserProfile User() => new()
     {
-        Name = "Rafael Davis",
-        Email = "rafael.davis@example.com",
+        Name = "John Smith",
+        Email = "john.smith@carpilot.demo",
         AvatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=128&h=128&fit=crop&crop=faces",
     };
 
@@ -64,7 +64,7 @@ internal static class GarageSeedData
                 AgentPhone = "(555) 214-8890",
                 Documents =
                 [
-                    Doc("ins-doc-1", "Policy-Declarations-2026.pdf", "pdf", "2026-01-02"),
+                    Doc("ins-doc-1", "Policy-Declarations-2026.txt", "text", "2026-01-02"),
                     Doc("ins-doc-2", "Insurance-ID-Card.pdf", "pdf", "2026-01-02"),
                     Doc("ins-doc-3", "Windshield-Claim-Photos.jpg", "image", "2025-09-19"),
                 ],
@@ -85,8 +85,8 @@ internal static class GarageSeedData
                 Notes = "Covers everything except listed exclusions. Wear items and routine maintenance are not covered.",
                 Documents =
                 [
-                    Doc("war-doc-1", "Service-Contract-EVP-2214.pdf", "pdf", "2024-05-01"),
-                    Doc("war-doc-2", "Covered-Components-Schedule.pdf", "pdf", "2024-05-01"),
+                    Doc("war-doc-1", "Service-Contract-EVP-2214.txt", "text", "2024-05-01"),
+                    Doc("war-doc-2", "Covered-Components-Schedule.txt", "text", "2024-05-01"),
                     Doc("war-doc-3", "Claim-Approval-Infotainment.pdf", "pdf", "2026-06-29"),
                 ],
             },
@@ -232,7 +232,7 @@ internal static class GarageSeedData
             Cost = 89.99m,
             Mileage = 46800,
             Shop = "Northside Toyota Service",
-            Documents = [Doc("d1", "Invoice-71204.pdf", "pdf", "2026-07-12")],
+            Documents = [Doc("d1", "Oil-Change-Invoice-71204.txt", "text", "2026-07-12")],
         },
         new()
         {
@@ -247,7 +247,7 @@ internal static class GarageSeedData
             Documents =
             [
                 Doc("d2", "Brake-Estimate.pdf", "pdf", "2026-04-28"),
-                Doc("d3", "Brake-Invoice.pdf", "pdf", "2026-05-02"),
+                Doc("d3", "Brake-Invoice.txt", "text", "2026-05-02"),
             ],
         },
         new()
@@ -396,7 +396,7 @@ internal static class GarageSeedData
                         {
                             Id = "c2",
                             Kind = "document",
-                            Label = "Brake-Invoice.pdf",
+                            Label = "Brake-Invoice.txt",
                             Detail = "Page 2 — parts and labor warranty terms",
                         },
                     ],

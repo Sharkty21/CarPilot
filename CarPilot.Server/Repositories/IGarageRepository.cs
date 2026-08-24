@@ -14,6 +14,7 @@ public interface IGarageRepository
 
     IReadOnlyList<MaintenanceRecord> GetMaintenanceRecords(string vehicleId);
     void UpsertMaintenanceRecord(MaintenanceRecord record);
+    bool DeleteMaintenanceRecord(string vehicleId, string recordId);
 
     IReadOnlyList<Conversation> GetConversations(string vehicleId);
     void UpsertConversation(Conversation conversation);
