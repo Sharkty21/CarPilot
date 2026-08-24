@@ -6,6 +6,7 @@ import { Pencil, Plus, Search, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import DocumentLink from "@/src/components/common/DocumentLink";
 import SectionCard from "@/src/components/common/SectionCard";
 import { useGarage } from "@/src/contexts/garageContext";
 import { carPilotGridTheme, defaultColDef } from "@/src/lib/agGrid";
@@ -104,13 +105,7 @@ const MaintenanceSection = ({
               {data.documents.map((document, index) => (
                 <span key={document.id}>
                   {index > 0 && <span className="text-slate-300">, </span>}
-                  <a
-                    href={document.url ?? "#"}
-                    onClick={(event) => event.preventDefault()}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {document.name}
-                  </a>
+                  <DocumentLink document={document} />
                 </span>
               ))}
             </span>

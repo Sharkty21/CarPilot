@@ -4,6 +4,7 @@ import type { ColDef, ICellRendererParams } from "ag-grid-community";
 import { FileText, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import DocumentLink from "@/src/components/common/DocumentLink";
 import { UPLOAD_ACCEPT } from "@/src/lib/constants";
 import { carPilotGridTheme, defaultColDef } from "@/src/lib/agGrid";
 import { formatDate } from "@/src/lib/format";
@@ -26,15 +27,9 @@ const NameCell = ({ data }: ICellRendererParams<VehicleDocument>) => {
   if (!data) return null;
   const Icon = data.kind === "image" ? ImageIcon : FileText;
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex min-w-0 items-center gap-2">
       <Icon className="size-4 shrink-0 text-blue-500" />
-      <a
-        href={data.url ?? "#"}
-        onClick={(event) => event.preventDefault()}
-        className="truncate text-blue-600 hover:underline"
-      >
-        {data.name}
-      </a>
+      <DocumentLink document={data} className="truncate" />
     </span>
   );
 };

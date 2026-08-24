@@ -3,10 +3,12 @@ import carPilotLogo from '@/public/CarPilot.png'
 
 import AccountMenu from '@/src/components/header/AccountMenu'
 import VehicleSelector from '@/src/components/header/VehicleSelector'
+import { DocumentPreviewProvider } from '@/src/contexts/DocumentPreviewProvider'
 
 const AuthenticatedLayout = () => {
 
   return (
+    <DocumentPreviewProvider>
     <div className="flex h-screen min-h-0 flex-col bg-[#f6f9fe]">
       <header className="flex h-16 min-w-0 flex-none items-center justify-between gap-3 border-b border-blue-100 bg-white px-3 md:px-6">
         <div className="flex shrink-0 items-center gap-1.5">
@@ -22,6 +24,7 @@ const AuthenticatedLayout = () => {
         <Outlet />
       </main>
     </div>
+    </DocumentPreviewProvider>
   )
 }
 
