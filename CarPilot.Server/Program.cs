@@ -12,7 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 
 using Pgvector.EntityFrameworkCore;
 
-using System.Security.Claims;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +24,16 @@ builder.AddNpgsqlDbContext<CarPilotDbContext>(
         var connectionString = builder.Configuration.GetConnectionString("carpilot");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
-            options.UseNpgsql(connectionString, npgsql => npgsql.UseVector());
+            // Disable GSS encryption negotiation: the deployed container image doesn't
+            // include libgssapi-krb5, and Npgsql 10+ defaults to attempting it first.
+            var builderCs = new Npgsql.NpgsqlConnectionStringBuilder(connectionString)
+            {
+                // Container-to-container Postgres on ACA has no TLS/GSS.
+                GssEncryptionMode = Npgsql.GssEncryptionMode.Disable,
+                SslMode = Npgsql.SslMode.Disable,
+                Timeout = 30,
+            };
+            options.UseNpgsql(builderCs.ConnectionString, npgsql => npgsql.UseVector());
         }
     });
 
@@ -32,72 +41,53 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
-builder.Services.Configure<KeycloakOptions>(builder.Configuration.GetSection(KeycloakOptions.SectionName));
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+builder.Services.Configure<DemoUserOptions>(builder.Configuration.GetSection(DemoUserOptions.SectionName));
 
+var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
+if (string.IsNullOrWhiteSpace(authOptions.JwtSigningKey) || authOptions.JwtSigningKey.Length < 32)
+{
+    throw new InvalidOperationException("Auth:JwtSigningKey must be configured (min 32 characters).");
+}
+
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.JwtSigningKey));
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddKeycloakJwtBearer(
-        serviceName: "keycloak",
-        realm: builder.Configuration["Keycloak:Realm"] ?? "carpilot",
-        options =>
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            options.Audience = builder.Configuration["Keycloak:ClientId"] ?? "carpilot-api";
-            options.RequireHttpsMetadata = false;
-            options.MapInboundClaims = false;
-            options.TokenValidationParameters = new TokenValidationParameters
+            ValidateIssuer = true,
+            ValidIssuer = authOptions.JwtIssuer,
+            ValidateAudience = true,
+            ValidAudience = authOptions.JwtAudience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = signingKey,
+            ValidateLifetime = true,
+            NameClaimType = "preferred_username",
+            RoleClaimType = "roles",
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
             {
-                ValidateAudience = true,
-                ValidAudience = builder.Configuration["Keycloak:ClientId"] ?? "carpilot-api",
-                NameClaimType = "preferred_username",
-                RoleClaimType = "roles",
-            };
-            options.Events = new JwtBearerEvents
-            {
-                OnTokenValidated = async context =>
+                if (context.Principal?.FindFirst("token_use")?.Value == "refresh")
                 {
-                    if (context.Principal?.Identity is not ClaimsIdentity identity)
-                    {
-                        return;
-                    }
+                    context.Fail("Refresh tokens cannot be used as access tokens.");
+                }
 
-                    if (identity.HasClaim(c => c.Type is "sub" or ClaimTypes.NameIdentifier))
-                    {
-                        return;
-                    }
-
-                    var email = identity.FindFirst("email")?.Value
-                        ?? identity.FindFirst(ClaimTypes.Email)?.Value;
-                    if (string.IsNullOrWhiteSpace(email))
-                    {
-                        return;
-                    }
-
-                    var db = context.HttpContext.RequestServices.GetRequiredService<CarPilotDbContext>();
-                    var userId = await db.Users.AsNoTracking()
-                        .Where(u => u.Email == email)
-                        .Select(u => u.Id)
-                        .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
-
-                    if (userId != Guid.Empty)
-                    {
-                        identity.AddClaim(new Claim("sub", userId.ToString()));
-                    }
-                },
-            };
-        });
+                return Task.CompletedTask;
+            },
+        };
+    });
 
 builder.Services.AddAuthorization();
-
-builder.Services.AddHttpClient("keycloak", client =>
-{
-    // Prefer HTTPS (Keycloak’s published endpoint), fall back to HTTP.
-    client.BaseAddress = new Uri("https+http://keycloak");
-});
+builder.Services.AddScoped<IAuthService, DemoAuthService>();
 
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IGarageRepository, EfGarageRepository>();
 builder.Services.AddScoped<IGarageService, GarageService>();
 builder.Services.AddScoped<IAssistantService, AssistantService>();
-builder.Services.AddScoped<IKeycloakAuthService, KeycloakAuthService>();
 builder.Services.AddSingleton<IObjectStorageService, S3ObjectStorageService>();
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 builder.Services.AddScoped<IDocumentIndexService, DocumentIndexService>();
@@ -125,18 +115,22 @@ if (app.Environment.IsDevelopment())
 app.MapControllers();
 app.MapDefaultEndpoints();
 app.UseFileServer();
+app.MapFallbackToFile("index.html");
 
-await DbInitializer.InitializeAsync(app.Services);
+// Listen immediately so ACA startup probes succeed while Postgres (Azure Files)
+// finishes recovery and migrations run.
+await app.StartAsync();
 
 try
 {
+    await DbInitializer.InitializeAsync(app.Services);
     await using var scope = app.Services.CreateAsyncScope();
-    var keycloak = scope.ServiceProvider.GetRequiredService<IKeycloakAuthService>();
-    await keycloak.EnsureDemoUserAsync();
+    var auth = scope.ServiceProvider.GetRequiredService<IAuthService>();
+    await auth.EnsureDemoUserAsync();
 }
 catch (Exception ex)
 {
-    app.Logger.LogWarning(ex, "Unable to ensure Keycloak demo user on startup.");
+    app.Logger.LogError(ex, "Database initialization failed; API is up but may be unhealthy until DB is ready.");
 }
 
-app.Run();
+await app.WaitForShutdownAsync();

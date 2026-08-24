@@ -12,7 +12,7 @@ namespace CarPilot.Server.Controllers;
 [Route("api/auth")]
 [AllowAnonymous]
 public class AuthController(
-    IKeycloakAuthService keycloak,
+    IAuthService auth,
     CarPilotDbContext db) : ControllerBase
 {
     public sealed record LoginRequest(string Email, string Password);
@@ -34,7 +34,7 @@ public class AuthController(
 
         try
         {
-            var tokens = await keycloak.LoginAsync(request.Email.Trim(), request.Password, cancellationToken);
+            var tokens = await auth.LoginAsync(request.Email.Trim(), request.Password, cancellationToken);
             var profile = await ResolveProfileAsync(request.Email.Trim(), cancellationToken);
             return Ok(new AuthResponse(tokens.AccessToken, tokens.RefreshToken, tokens.ExpiresIn, profile));
         }
@@ -61,12 +61,12 @@ public class AuthController(
 
         try
         {
-            var created = await keycloak.RegisterAsync(
+            var created = await auth.RegisterAsync(
                 request.Name.Trim(),
                 request.Email.Trim(),
                 request.Password,
                 cancellationToken);
-            var tokens = await keycloak.LoginAsync(created.Email, request.Password, cancellationToken);
+            var tokens = await auth.LoginAsync(created.Email, request.Password, cancellationToken);
             var profile = new UserProfile
             {
                 Name = created.Name,
@@ -95,7 +95,7 @@ public class AuthController(
 
         try
         {
-            var tokens = await keycloak.RefreshAsync(request.RefreshToken, cancellationToken);
+            var tokens = await auth.RefreshAsync(request.RefreshToken, cancellationToken);
             return Ok(new AuthResponse(tokens.AccessToken, tokens.RefreshToken, tokens.ExpiresIn, new UserProfile()));
         }
         catch (Exception ex)

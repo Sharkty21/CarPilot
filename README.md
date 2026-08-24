@@ -2,7 +2,7 @@
 
 CarPilot is a personal vehicle garage: keep maintenance, warranty, insurance, and finance records in one place, then ask an AI assistant about them. The assistant can search your (redacted) documents, look things up on the web, and write garage records back through the API as the signed-in user.
 
-Locally, [**.NET Aspire**](https://learn.microsoft.com/dotnet/aspire/get-started/aspire-overview) runs the whole distributed stack—React UI, ASP.NET BFF, Python LangGraph service, PostgreSQL + pgvector, Keycloak, and S3-compatible object storage—so you do not hand-manage connection strings between services.
+Locally, [**.NET Aspire**](https://learn.microsoft.com/dotnet/aspire/get-started/aspire-overview) runs the whole distributed stack—React UI, ASP.NET BFF, Python LangGraph service, PostgreSQL + pgvector, and S3-compatible object storage—so you do not hand-manage connection strings between services.
 
 ## Architecture
 
@@ -20,10 +20,6 @@ flowchart LR
     LangGraph["carpilot-ai<br/>FastAPI + LangGraph"]
   end
 
-  subgraph Identity
-    Keycloak["Keycloak"]
-  end
-
   subgraph Data
     PG["PostgreSQL + pgvector"]
     RustFS["RustFS<br/>documents + avatars"]
@@ -35,7 +31,6 @@ flowchart LR
   end
 
   Browser -->|"login / garage / chat"| Server
-  Server -->|"JWT login, register"| Keycloak
   Server --> PG
   Server --> RustFS
   Server -->|"SSE proxy + JWT"| LangGraph
@@ -55,17 +50,35 @@ Aspire’s AppHost is the local composition root (`CarPilot.AppHost/AppHost.cs`)
 | Resource | Role |
 |---|---|
 | `webfrontend` | Vite React app; published into `wwwroot` for production |
-| `server` | BFF: auth, garage CRUD, JWT validation, chat proxy |
+| `server` | BFF: demo JWT auth, garage CRUD, chat proxy |
 | `carpilot-ai` | LangGraph agent, RAG, document ingest |
 | `postgres` / `carpilot` | Garage data + vectors (`pgvector/pgvector:pg17`) |
-| `keycloak` | Realm `carpilot`, client `carpilot-api` |
 | `rustfs` | S3-compatible buckets `documents` and `avatars` |
+
+## Authentication (demo JWT — no Keycloak)
+
+CarPilot does **not** run Keycloak (or any external IdP) in local Aspire or on Azure.
+
+Instead, `CarPilot.Server` uses **demo auth**:
+
+- Login accepts only the seeded demo user credentials.
+- The server issues HS256 JWTs (`Auth:JwtSigningKey`) that the API validates itself.
+- The garage seed for John Smith is applied on startup (`DbInitializer`).
+- New account registration is disabled in this mode.
+
+| Setting | Purpose |
+|---|---|
+| `Auth:JwtSigningKey` | Symmetric signing key (min 32 chars). Local default is in `appsettings.json`; Azure gets `Parameters:auth-jwt-signing-key`. |
+| `Auth:JwtIssuer` / `Auth:JwtAudience` | Token issuer/audience (`carpilot` / `carpilot-api`) |
+| `DemoUser:*` | Seeded user id, email, password, display name |
+
+This keeps Azure Container Apps simple (no Keycloak container, realm import, or internal HTTPS IdP hops). For a real product, replace demo auth with a managed IdP (Clerk, Entra ID, Auth0, etc.).
 
 ## Quickstart
 
 ### Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Postgres, Keycloak, and RustFS run as containers)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Postgres and RustFS run as containers)
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Node.js](https://nodejs.org/) `^20.19.0` or `>=22.12.0`
 - [Python 3.12+](https://www.python.org/downloads/) and [uv](https://docs.astral.sh/uv/) (Aspire launches the AI service with `AddUvicornApp(...).WithUv()`)
@@ -80,24 +93,28 @@ dotnet user-secrets set Parameters:openai-api-key "sk-..." --project CarPilot.Ap
 dotnet user-secrets set Parameters:langchain-api-key "lsv2-..." --project CarPilot.AppHost
 ```
 
+For Azure deploy, also set a JWT signing key (32+ characters):
+
+```bash
+dotnet user-secrets set Parameters:auth-jwt-signing-key "your-long-random-signing-key...." --project CarPilot.AppHost
+```
+
 ### 2. Run the AppHost
 
 ```bash
 dotnet run --project CarPilot.AppHost
 ```
 
-Aspire starts containers and services, then opens the dashboard. First boot can take a few minutes while images pull, the realm imports, and the AI service downloads the spaCy model.
+Aspire starts containers and services, then opens the dashboard. First boot can take a few minutes while images pull and the AI service downloads the spaCy model.
 
 The HTTPS profile uses `https://carpilot.dev.localhost:17275` (see `CarPilot.AppHost/Properties/launchSettings.json`). Use the dashboard links if ports differ on your machine.
 
 ### 3. Sign in
 
-Demo account (seeded garage + documents):
+Demo account (seeded garage + documents; form is prefilled):
 
 - **Email:** `john.smith@carpilot.demo`
 - **Password:** `demo`
-
-You can also register a new user from the login page.
 
 ### Optional: AI service tests
 
@@ -112,11 +129,11 @@ More agent/RAG detail lives in [carpilot-ai/README.md](carpilot-ai/README.md).
 
 ## Design notes
 
-**Aspire as the local (and intended cloud) fabric.** The product is a small distributed system: a React SPA, a .NET BFF, and a Python agent, plus auth, a relational store with vectors, and blob storage. Aspire is a natural fit for that mix. It dockerizes backing services, injects references so the BFF and AI process do not copy connection strings around, and already has a deployment story for .NET + containers. That let development stay on “the graph of services” instead of a pile of `.env` files.
+**Aspire as the local (and intended cloud) fabric.** The product is a small distributed system: a React SPA, a .NET BFF, and a Python agent, plus a relational store with vectors and blob storage. Aspire dockerizes backing services, injects references so the BFF and AI process do not copy connection strings around, and already has a deployment story for .NET + containers.
 
-**BFF in ASP.NET.** The browser never talks to Keycloak or the AI service directly for garage writes. The server issues/validates JWTs, owns EF Core and S3, and proxies the assistant SSE stream. That keeps CORS, tokens, and authorization in one place and lets Python tools mutate data as the same user.
+**BFF in ASP.NET.** The browser never talks to the AI service directly for garage writes. The server issues/validates JWTs, owns EF Core and S3, and proxies the assistant SSE stream. That keeps CORS, tokens, and authorization in one place and lets Python tools mutate data as the same user.
 
-**Keycloak in-process (free, local, managed by Aspire).** For a demo, a self-hosted IdP with a checked-in realm (`CarPilot.AppHost/Realms/carpilot-realm.json`) was enough: login, register, and JWT bearer auth without paying for a managed IdP. Client id/secret are development values injected by the AppHost—not a production secret model.
+**Demo JWT instead of Keycloak.** Self-hosted Keycloak on Azure Container Apps was unreliable (empty bind-mount shares, H2 corruption on Azure Files, flaky internal HTTPS). For this demo app, server-issued JWTs for a seeded user are enough. Swap in a managed IdP when you need real multi-user auth.
 
 **Python for the agent.** LangGraph, pgvector RAG, Presidio, and LangSmith are the usual Python ecosystem. Aspire’s Python hosting (`WithUv`, health checks, references to Postgres, the BFF, and RustFS) kept that service first-class in the same dashboard as the .NET process.
 
@@ -126,7 +143,7 @@ More agent/RAG detail lives in [carpilot-ai/README.md](carpilot-ai/README.md).
 
 ## What I would improve with more time
 
-**Auth.** Replace self-hosted Keycloak with a **managed IdP** (Entra ID, Auth0, Cognito, etc.) so token issuance, MFA, and secret rotation are not operator-owned.
+**Auth.** Replace demo JWT auth with a **managed IdP** (Clerk, Entra ID, Auth0, Cognito, etc.) so token issuance, MFA, and secret rotation are not a hardcoded demo user.
 
 **Code organization.** Move the .NET side toward [Clean Architecture](https://cleanarchitecture.jasontaylor.dev/docs/architecture/) (Domain / Application / Infrastructure / Presentation, use-case handlers, pipeline behaviors) so the garage and assistant stay testable without HTTP or EF. The React app would get the same treatment: clearer feature folders, stronger TanStack Query caching, and less provider-level coupling.
 

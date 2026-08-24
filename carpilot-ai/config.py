@@ -3,15 +3,31 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# ACA Postgres has no TLS. Keep only params both asyncpg and psycopg accept
+# in a shared DSN (asyncpg rejects gssencmode as an unknown server setting).
+_PG_CLIENT_PARAMS = {
+    "sslmode": "disable",
+}
+
+
+def _with_postgres_client_params(url: str) -> str:
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for key, value in _PG_CLIENT_PARAMS.items():
+        query.setdefault(key, value)
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 def _npgsql_to_asyncpg_url(value: str) -> str:
     """Convert an Npgsql-style connection string to a postgresql:// URL if needed."""
     if value.startswith(("postgresql://", "postgres://", "postgresql+asyncpg://")):
-        return value.replace("postgresql+asyncpg://", "postgresql://", 1)
+        converted = value.replace("postgresql+asyncpg://", "postgresql://", 1)
+        return _with_postgres_client_params(converted)
 
     parts: dict[str, str] = {}
     for segment in value.split(";"):
@@ -31,7 +47,7 @@ def _npgsql_to_asyncpg_url(value: str) -> str:
         return value
 
     userinfo = username if not password else f"{username}:{password}"
-    return f"postgresql://{userinfo}@{host}:{port}/{database}"
+    return _with_postgres_client_params(f"postgresql://{userinfo}@{host}:{port}/{database}")
 
 
 class Settings(BaseSettings):

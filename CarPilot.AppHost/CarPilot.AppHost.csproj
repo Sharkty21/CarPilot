@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <AspireUseCliBundle>true</AspireUseCliBundle>
     <UserSecretsId>a456165b-b1aa-4400-b4a3-12f2de622316</UserSecretsId>
+    <NoWarn>$(NoWarn);ASPIREACANAMING001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,15 +15,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Realms\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="postgres\**\*" CopyToOutputDirectory="PreserveNewest" />
     <None Include="postgres-init\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="keycloak\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="13.5.2" />
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.5.2" />
-    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.5.2-preview.1.26421.6" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.5.2" />
     <PackageReference Include="Aspire.Hosting.Python" Version="13.5.2" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.RustFs" Version="13.5.0-beta.730" />

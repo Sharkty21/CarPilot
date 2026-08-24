@@ -98,11 +98,21 @@ async def init_graph():
     conninfo = settings.database_url
     if conninfo.startswith("postgres://"):
         conninfo = "postgresql://" + conninfo[len("postgres://") :]
+    # Keepalive + connect timeout for flaky Azure Files Postgres (libpq / psycopg only).
+    sep = "&" if "?" in conninfo else "?"
+    conninfo = (
+        f"{conninfo}{sep}connect_timeout=30&keepalives=1&keepalives_idle=30"
+        "&keepalives_interval=10&keepalives_count=3"
+    )
 
     _checkpointer_pool = AsyncConnectionPool(
         conninfo=conninfo,
+        min_size=1,
         max_size=10,
         kwargs={"autocommit": True, "prepare_threshold": 0},
+        check=AsyncConnectionPool.check_connection,
+        max_idle=60.0,
+        reconnect_timeout=30.0,
         open=False,
     )
     await _checkpointer_pool.open()

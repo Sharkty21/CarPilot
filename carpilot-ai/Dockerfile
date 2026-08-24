@@ -15,7 +15,7 @@ COPY agent ./agent
 COPY tools ./tools
 COPY clients ./clients
 COPY ingestion ./ingestion
-COPY main.py config.py ./
+COPY main.py config.py seed_docs.py ./
 
 RUN uv sync --no-dev \
     && uv run python -m spacy download en_core_web_sm
@@ -25,4 +25,5 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["uvicorn"]
+CMD ["main:app", "--host", "0.0.0.0", "--port", "8000"]

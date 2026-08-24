@@ -3,6 +3,8 @@ using CarPilot.Server.Models;
 
 using Microsoft.EntityFrameworkCore;
 
+using Npgsql;
+
 namespace CarPilot.Server.Data;
 
 /// <summary>
@@ -19,6 +21,11 @@ public static class DbInitializer
     {
         await using var scope = services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<CarPilotDbContext>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+        // Aspire AddDatabase only creates the DB while the AppHost is running locally.
+        // On Azure Container Apps the database must already exist (or be created here).
+        await EnsureDatabaseExistsAsync(configuration.GetConnectionString("carpilot"), cancellationToken);
 
         await db.Database.MigrateAsync(cancellationToken);
         await db.Database.ExecuteSqlRawAsync(
@@ -26,6 +33,96 @@ public static class DbInitializer
             cancellationToken);
 
         await SeedDemoGarageAsync(db, cancellationToken);
+    }
+
+    private static async Task EnsureDatabaseExistsAsync(string? connectionString, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return;
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(connectionString)
+        {
+            GssEncryptionMode = GssEncryptionMode.Disable,
+            SslMode = SslMode.Disable,
+            Timeout = 30,
+        };
+
+        var databaseName = builder.Database;
+        if (string.IsNullOrWhiteSpace(databaseName))
+        {
+            return;
+        }
+
+        builder.Database = "postgres";
+
+        await using var connection = new NpgsqlConnection(builder.ConnectionString);
+        await OpenWhenReadyAsync(connection, cancellationToken);
+
+        await using (var existsCommand = connection.CreateCommand())
+        {
+            existsCommand.CommandText = "SELECT 1 FROM pg_database WHERE datname = @name";
+            existsCommand.Parameters.AddWithValue("name", databaseName);
+            var exists = await existsCommand.ExecuteScalarAsync(cancellationToken) is not null;
+            if (exists)
+            {
+                return;
+            }
+        }
+
+        // Database names can't be parameterized; quote carefully.
+        var quotedName = "\"" + databaseName.Replace("\"", "\"\"") + "\"";
+        await using var createCommand = connection.CreateCommand();
+        createCommand.CommandText = $"CREATE DATABASE {quotedName}";
+        await createCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task OpenWhenReadyAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
+    {
+        // Postgres on Azure Files can take several minutes after a revision restart.
+        const int maxAttempts = 60;
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await connection.OpenAsync(cancellationToken);
+                return;
+            }
+            catch (Exception ex) when (IsTransientStartup(ex))
+            {
+                lastError = ex;
+                if (attempt == maxAttempts)
+                {
+                    break;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"PostgreSQL was not ready after {maxAttempts} attempts.",
+            lastError);
+    }
+
+    private static bool IsTransientStartup(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException pg && pg.SqlState is "57P03" or "57P01")
+            {
+                return true;
+            }
+
+            if (current is NpgsqlException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static async Task EnsureUserProfileAsync(

@@ -1,12 +1,26 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
+builder.AddAzureContainerAppEnvironment("aca-env")
+    .WithCompactResourceNaming();
+
 var openAiApiKey = builder.AddParameter("openai-api-key", secret: true);
 var langchainApiKey = builder.AddParameter("langchain-api-key", secret: true);
+var authJwtSigningKey = builder.AddParameter("auth-jwt-signing-key", secret: true);
 
+// Bake init scripts into the image. WithInitFiles becomes an empty Azure Files
+// share on ACA (local host paths are not uploaded), so CREATE DATABASE never ran.
 var postgres = builder.AddPostgres("postgres")
-    .WithImage("pgvector/pgvector", "pg17")
+    .WithDockerfile(".", "postgres/Dockerfile")
     .WithDataVolume()
-    .WithInitFiles("./postgres-init");
+    .PublishAsAzureContainerApp((_, app) =>
+    {
+        // Azure Files (SMB) mounts default to uid=0/gid=0, but the postgres image
+        // runs as uid 999 and needs to chown/chmod its data dir on init.
+        foreach (var volume in app.Template.Volumes)
+        {
+            volume.Value!.MountOptions = "uid=999,gid=999,nobrl,mfsymlinks,cache=none,dir_mode=0750,file_mode=0750";
+        }
+    });
 
 var carpilotDb = postgres.AddDatabase("carpilot");
 
@@ -16,27 +30,26 @@ var rustfs = builder.AddRustFs("rustfs")
 var documentsBucket = rustfs.AddBucket("documents");
 var avatarsBucket = rustfs.AddBucket("avatars");
 
-var keycloak = builder.AddKeycloak("keycloak", 8080)
-    .WithDataVolume()
-    .WithRealmImport("./Realms");
-
 var server = builder.AddProject<Projects.CarPilot_Server>("server")
     .WithReference(carpilotDb)
     .WithReference(documentsBucket)
     .WithReference(avatarsBucket)
-    .WithReference(keycloak)
     .WaitFor(carpilotDb)
     .WaitFor(rustfs)
-    .WaitFor(keycloak)
-    .WithEnvironment("Keycloak__Realm", "carpilot")
-    .WithEnvironment("Keycloak__ClientId", "carpilot-api")
-    .WithEnvironment("Keycloak__ClientSecret", "carpilot-api-secret")
-    .WithEnvironment("Keycloak__AdminClientId", "carpilot-api")
+    .WithEnvironment("Auth__JwtIssuer", "carpilot")
+    .WithEnvironment("Auth__JwtAudience", "carpilot-api")
     .WithEnvironment("DemoUser__Id", "a0000000-0000-4000-8000-000000000001")
     .WithEnvironment("DemoUser__Email", "john.smith@carpilot.demo")
     .WithEnvironment("DemoUser__Password", "demo")
+    .WithEnvironment("DemoUser__Name", "John Smith")
     .WithHttpHealthCheck("/health")
     .WithExternalHttpEndpoints();
+
+// Local uses the signing key from appsettings.json; Azure gets a secret parameter.
+if (!builder.ExecutionContext.IsRunMode)
+{
+    server.WithEnvironment("Auth__JwtSigningKey", authJwtSigningKey);
+}
 
 var carpilotAi = builder.AddUvicornApp("carpilot-ai", "../carpilot-ai", "main:app")
     .WithUv()

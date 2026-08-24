@@ -58,7 +58,14 @@ async def init_pool() -> asyncpg.Pool:
         return _pool
 
     settings = get_settings()
-    _pool = await asyncpg.create_pool(dsn=settings.database_url, min_size=1, max_size=10)
+    _pool = await asyncpg.create_pool(
+        dsn=settings.database_url,
+        min_size=1,
+        max_size=10,
+        timeout=30,
+        command_timeout=60,
+        max_inactive_connection_lifetime=60,
+    )
     async with _pool.acquire() as conn:
         await conn.execute(SCHEMA_SQL)
         try:
