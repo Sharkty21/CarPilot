@@ -1,0 +1,141 @@
+---
+description: Frontend UI development with shadcn/ui components
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Frontend UI Development with shadcn/ui
+
+## 1. Prioritize shadcn Components
+
+Always prefer shadcn/ui components for UI implementations. These are pre-built, tested components that maintain consistency and accessibility across the application.
+
+**Examples of shadcn components to leverage:**
+- `Button`, `Card`, `Dialog`, `Drawer`, `Select`, `Input`, `Textarea`
+- `Tabs`, `Accordion`, `Breadcrumb`, `Badge`, `Alert`
+- `Form` (with react-hook-form integration)
+- `Table`, `Pagination`, `Popover`, `Tooltip`
+- `Sheet` (mobile-friendly side panel)
+
+```typescript
+// ✅ GOOD - Use shadcn components
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+
+export function MyForm() {
+  return (
+    <Card>
+      <Input placeholder="Enter value" />
+      <Button>Submit</Button>
+    </Card>
+  )
+}
+```
+
+## 2. Never Modify shadcn Files
+
+shadcn files are generated/imported components. Do not edit them. Instead:
+- Override behavior through props
+- Wrap components with custom components
+- Use composition to extend functionality
+- Leverage Tailwind CSS classes for styling
+
+```typescript
+// ❌ BAD - Don't modify the shadcn Button component file
+// (file: components/ui/button.tsx)
+// export const Button = styled(button) => { ... /* your modifications */ }
+
+// ✅ GOOD - Create a custom wrapper or use props
+import { Button } from "@/components/ui/button"
+
+export function CustomButton(props) {
+  return <Button className="my-custom-class" {...props} />
+}
+
+// ✅ GOOD - Use existing props for styling
+<Button variant="outline" size="lg" />
+```
+
+## 3. Emphasize Simplicity
+
+Don't hack around shadcn components to achieve desired behaviors. Instead:
+- First check if the component already supports what you need via props
+- Propose simpler implementations using built-in shadcn features
+- Combine multiple simple components rather than over-complicating one
+- Use Tailwind utility classes for layout and spacing
+
+```typescript
+// ❌ BAD - Hacking around the Button component
+<Button onClick={() => {
+  setOpen(true)
+  setTimeout(() => doSomething(), 500)
+  // ... complex state management
+}}>Click me</Button>
+
+// ✅ GOOD - Use a Dialog instead
+import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog"
+
+<Dialog>
+  <DialogTrigger asChild>
+    <Button>Click me</Button>
+  </DialogTrigger>
+  <DialogContent>
+    {/* Your content */}
+  </DialogContent>
+</Dialog>
+
+// ✅ GOOD - Consider Popover for lightweight overlays
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
+
+<Popover>
+  <PopoverTrigger asChild>
+    <Button>Click me</Button>
+  </PopoverTrigger>
+  <PopoverContent>
+    {/* Your content */}
+  </PopoverContent>
+</Popover>
+```
+
+## Component Composition Pattern
+
+Build features by combining simple shadcn components rather than extending one component with complex logic:
+
+```typescript
+// ✅ GOOD - Compose from simple components
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+export function UserFormCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>User Information</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Label>Email</Label>
+        <Input type="email" placeholder="your@email.com" />
+        <Button className="mt-4">Save</Button>
+      </CardContent>
+    </Card>
+  )
+}
+```
+
+## Styling Approach
+
+Use Tailwind CSS for styling. shadcn components already use Tailwind and accept `className` props:
+
+```typescript
+// ✅ GOOD - Use Tailwind for customization
+<Button className="w-full bg-blue-600 hover:bg-blue-700">
+  Full Width Button
+</Button>
+
+<Card className="bg-gradient-to-r from-slate-100 to-slate-200">
+  <CardContent className="p-6">...</CardContent>
+</Card>
+```

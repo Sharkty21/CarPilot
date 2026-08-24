@@ -1,0 +1,80 @@
+---
+description: Use Base UI primitives instead of Radix UI
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Use Base UI, Not Radix UI
+
+This project's shadcn setup is configured for **Base UI** (`@base-ui/react`), not Radix UI. Never install or import `@radix-ui/*` packages, and never copy Radix-based shadcn snippets verbatim — the APIs differ in several important ways.
+
+## 1. Import the Named Export, Not a Namespace Default
+
+Base UI subpackages re-export their parts nested under a single named export (e.g. `Select`, `Tabs`), not spread at the top level.
+
+```typescript
+// ❌ BAD - TabsPrimitive.List will be undefined
+import * as TabsPrimitive from "@base-ui/react/tabs"
+
+// ✅ GOOD
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
+```
+
+## 2. Part Names Differ from Radix
+
+Check the installed package's `index.parts.d.mts` before assuming a Radix name carries over.
+
+| Radix UI | Base UI |
+|---|---|
+| `Tabs.Trigger` | `Tabs.Tab` |
+| `Select.Viewport` | `Select.List` |
+| `Select.Item` (ok) | `Select.Item` |
+| `Select.ItemIndicator` | `Select.ItemIndicator` |
+| `Select.ScrollUpButton` | `Select.ScrollUpArrow` |
+| `Select.ScrollDownButton` | `Select.ScrollDownArrow` |
+
+## 3. No `asChild` — Use `render`
+
+Base UI does not support Radix's `asChild` prop. To swap the rendered element, use the `render` prop; to just place content inside the existing element, pass normal children.
+
+```typescript
+// ❌ BAD - asChild is not a valid Base UI prop
+<Select.Icon asChild>
+  <ChevronDown />
+</Select.Icon>
+
+// ✅ GOOD - plain children when not replacing the root element
+<Select.Icon>
+  <ChevronDown />
+</Select.Icon>
+
+// ✅ GOOD - render prop when replacing the root element
+<Menu.Item render={<Link to="/settings" />}>Settings</Menu.Item>
+```
+
+## 4. Popups Require `Portal` + `Positioner`
+
+Floating parts like `Popup` must be wrapped in `Portal` and `Positioner`, or you'll get a "context is missing" runtime error.
+
+```typescript
+// ✅ GOOD
+<Select.Portal>
+  <Select.Positioner sideOffset={4}>
+    <Select.Popup>{children}</Select.Popup>
+  </Select.Positioner>
+</Select.Portal>
+```
+
+## 5. State via Data Attributes, Not `data-state`
+
+Base UI exposes state as boolean-presence data attributes rather than Radix's `data-state="open"` pattern. Use Tailwind's bare `data-*:` variant, not the bracketed `data-[state=...]` form.
+
+```typescript
+// ❌ BAD - Base UI never sets data-state
+className="data-[state=open]:animate-in data-[state=checked]:bg-accent"
+
+// ✅ GOOD
+className="data-open:animate-in data-selected:bg-accent"
+```
+
+Common attributes: `data-open` / `data-closed` (popups), `data-active` (active tab), `data-selected` (selected item), `data-disabled`, `data-highlighted`. Always verify the exact attribute in the component's `*DataAttributes.d.mts` file rather than assuming.

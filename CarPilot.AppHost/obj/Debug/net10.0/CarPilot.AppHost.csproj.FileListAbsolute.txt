@@ -139,3 +139,4 @@ C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.AppHost\obj\Debug\net10.0\re
 C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.AppHost\obj\Debug\net10.0\CarPilot.AppHost.pdb
 C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.AppHost\obj\Debug\net10.0\CarPilot.AppHost.genruntimeconfig.cache
 C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.AppHost\obj\Debug\net10.0\ref\CarPilot.AppHost.dll
+C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.AppHost\obj\Debug\net10.0\CarPilot.AppHost.sourcelink.json

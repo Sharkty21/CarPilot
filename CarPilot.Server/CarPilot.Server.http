@@ -1,6 +1,31 @@
 @Server_HostAddress = http://localhost:5579
 
-GET {{Server_HostAddress}}/api/weatherforecast/
+GET {{Server_HostAddress}}/api/user/profile
 Accept: application/json
+
+###
+
+GET {{Server_HostAddress}}/api/vehicles
+Accept: application/json
+
+###
+
+GET {{Server_HostAddress}}/api/vehicles/veh-1/maintenance-records
+Accept: application/json
+
+###
+
+GET {{Server_HostAddress}}/api/vehicles/veh-1/conversations
+Accept: application/json
+
+###
+
+POST {{Server_HostAddress}}/api/vehicles/veh-1/assistant/ask
+Content-Type: application/json
+
+{
+  "question": "When was my last oil change?",
+  "attachmentNames": []
+}
 
 ###

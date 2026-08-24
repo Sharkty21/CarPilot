@@ -1,0 +1,51 @@
+---
+description: Index/list pages scroll within a bounded window, not the whole page
+globs: frontend/**/*.tsx
+alwaysApply: false
+---
+
+# Scrollable Index Content, Not the Whole Page
+
+For index/list-style pages (search results, tables, feeds) rendered inside
+`AuthenticatedLayout`'s `<main>` (which is `overflow-auto`), don't let the
+entire page grow and scroll. Instead, size the page to the available viewport
+and make only the list/results region (and any independent side panel)
+scroll within their own bounded containers. Fixed elements like page titles,
+toolbars, and filter bars must stay on-screen without needing to scroll past
+the list.
+
+## Pattern
+
+1. Root page element: `h-full min-h-0 flex flex-col` (fills the layout's
+   `<main>`, which already has a definite height).
+2. Headers/toolbars that should stay pinned: `flex-none`.
+3. The row containing a side panel + main content: `flex flex-1 min-h-0 gap-*`.
+4. Any independently-scrolling region (filter sidebar, results grid): give it
+   `min-h-0 overflow-y-auto` (add `flex-1` if it should fill remaining space
+   in a flex column).
+
+```tsx
+// ✅ GOOD - bounded page, independently scrolling panel + results
+<div className="flex h-full min-h-0 w-full flex-col">
+  <div className="flex-none">{/* title, always visible */}</div>
+  <div className="flex min-h-0 flex-1 gap-8">
+    <aside className="w-80 shrink-0 overflow-y-auto">{/* filters */}</aside>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex-none">{/* toolbar, always visible */}</div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{/* results grid */}</div>
+    </div>
+  </div>
+</div>
+
+// ❌ BAD - unbounded page grows with content, forcing the whole page
+// (and the filter bar with it) to scroll to reach items further down
+<div className="w-full">
+  <div>{/* title */}</div>
+  <div className="flex gap-8">
+    <aside>{/* filters */}</aside>
+    <div>{/* results grid, unbounded height */}</div>
+  </div>
+</div>
+```
+
+See `frontend/src/pages/buy/CarSearch.tsx` for a full example.

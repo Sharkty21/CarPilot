@@ -53,3 +53,4 @@ C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.Server\obj\Debug\net10.0\ref
 C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.Server\obj\Debug\net10.0\CarPilot.Server.pdb
 C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.Server\obj\Debug\net10.0\CarPilot.Server.genruntimeconfig.cache
 C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.Server\obj\Debug\net10.0\ref\CarPilot.Server.dll
+C:\Users\tyler\SharkeyDevelopment\CarPilot\CarPilot.Server\obj\Debug\net10.0\CarPilot.Server.sourcelink.json

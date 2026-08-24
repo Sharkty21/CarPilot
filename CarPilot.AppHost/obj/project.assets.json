@@ -3728,7 +3728,7 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\tyler\\.nuget\\packages\\": {},
+    "C:\\Users\\tyler\\AppData\\Local\\Temp\\cursor-sandbox-cache\\0df9328fea70e94128e441168de334ea\\nuget": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
@@ -3737,7 +3737,7 @@
       "projectUniqueName": "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj",
       "projectName": "CarPilot.AppHost",
       "projectPath": "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj",
-      "packagesPath": "C:\\Users\\tyler\\.nuget\\packages\\",
+      "packagesPath": "C:\\Users\\tyler\\AppData\\Local\\Temp\\cursor-sandbox-cache\\0df9328fea70e94128e441168de334ea\\nuget",
       "outputPath": "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [

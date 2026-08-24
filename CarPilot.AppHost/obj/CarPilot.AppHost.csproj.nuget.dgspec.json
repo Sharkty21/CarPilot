@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj": {}
+    "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj": {}
   },
   "projects": {
-    "c:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj": {
+    "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj",
+        "projectUniqueName": "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj",
         "projectName": "CarPilot.AppHost",
-        "projectPath": "c:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj",
-        "packagesPath": "C:\\Users\\tyler\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\obj\\",
+        "projectPath": "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\CarPilot.AppHost.csproj",
+        "packagesPath": "C:\\Users\\tyler\\AppData\\Local\\Temp\\cursor-sandbox-cache\\0df9328fea70e94128e441168de334ea\\nuget",
+        "outputPath": "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\CarPilot.AppHost\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "c:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\NuGet.Config",
+          "C:\\Users\\tyler\\SharkeyDevelopment\\CarPilot\\NuGet.Config",
           "C:\\Users\\tyler\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
