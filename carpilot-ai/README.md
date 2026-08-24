@@ -83,7 +83,51 @@ uv run python -m spacy download en_core_web_sm
 uv run pytest
 ```
 
-LangSmith eval examples live in `evals/tool_routing_dataset.py` (`carpilot-agent-tool-routing`).
+## Full-graph eval (LangSmith)
+
+Option B: each dataset row calls live `POST /chat` (full LangGraph agent + tools), then scores which tools ran.
+
+Dataset source: `evals/tool_routing_dataset.py` → LangSmith dataset `carpilot-agent-tool-routing`.
+
+### Run locally / against a test API
+
+1. Start Aspire (or another environment) so `carpilot-ai` serves `/health` and `/chat`.
+2. From `carpilot-ai/`:
+
+```bash
+# PowerShell
+# Prefer loopback + the Aspire carpilot-ai port (not webfrontend).
+# Dashboard hosts like https://carpilot-ai-carpilot.dev.localhost:50694 also work;
+# the runner rewrites them to 127.0.0.1 because Windows DNS cannot resolve *.dev.localhost.
+$env:EVAL_API_BASE_URL = "http://127.0.0.1:50694"
+$env:LANGSMITH_API_KEY = "<key from smith.langchain.com/settings>"
+$env:LANGSMITH_PROJECT = "Carpilot"
+# Optional — needed if garage CRUD tools require a user JWT:
+# $env:EVAL_AUTH_BEARER = "<access token>"
+# $env:EVAL_USER_ID = "a0000000-0000-4000-8000-000000000001"
+# $env:EVAL_VEHICLE_ID = "veh-1"
+
+uv run python -m evals.run_full_graph_eval
+```
+
+Upload dataset only (no LLM / API calls):
+
+```bash
+uv run python -m evals.run_full_graph_eval --sync-only
+```
+
+### LangSmith UI — step by step after a run
+
+1. Open [https://smith.langchain.com](https://smith.langchain.com) and sign in to the same workspace as your API key.
+2. Confirm the **tracing project** name matches `LANGSMITH_PROJECT` (default **Carpilot**). Live chat traces land here; eval experiments are linked from the dataset.
+3. In the left nav, open **Datasets & Experiments** (or **Datasets**).
+4. Open dataset **`carpilot-agent-tool-routing`**. You should see the 7 examples (question + expected tools).
+5. Open the **Experiments** tab on that dataset.
+6. Click the latest experiment (prefix `full-graph-tool-routing-…`).
+7. Review per-example **tool_routing** score (1.0 pass / 0.0 fail) and the comment (`actual=…`, `any_of=…`, etc.).
+8. Open a single example run to see the full `/chat` output (`tools_called`, answer text) and any nested LangSmith traces if tracing was on in the AI service.
+
+**Note:** The dataset lives under **Datasets** in your LangSmith workspace; it is not a folder *inside* the Carpilot tracing project. Same account/workspace; different UI area.
 
 ## Production container
 

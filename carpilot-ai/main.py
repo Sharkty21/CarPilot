@@ -15,6 +15,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import BaseModel, Field
 
 from agent.graph import close_graph, get_graph, init_graph, run_config
+from agent.message_utils import tools_called_from_messages
 from clients.auth_context import access_token_scope
 from clients.db import close_pool, init_pool, list_documents
 from config import get_settings
@@ -81,6 +82,8 @@ class ChatResponse(BaseModel):
     thread_id: str
     content: str
     messages: list[dict[str, Any]] = Field(default_factory=list)
+    # Ordered tool names requested during the graph run (for evals / debugging).
+    tools_called: list[str] = Field(default_factory=list)
 
 
 def _last_ai_text(messages: list[Any]) -> str:
@@ -201,13 +204,20 @@ async def chat(
             config=config,
         )
     messages = result.get("messages") or []
+    tools_called = tools_called_from_messages(messages)
     return ChatResponse(
         thread_id=req.thread_id,
         content=_last_ai_text(messages),
+        tools_called=tools_called,
         messages=[
             {
                 "type": getattr(m, "type", m.__class__.__name__),
                 "content": getattr(m, "content", str(m)),
+                **(
+                    {"tool_calls": getattr(m, "tool_calls", None)}
+                    if getattr(m, "tool_calls", None)
+                    else {}
+                ),
             }
             for m in messages
         ],

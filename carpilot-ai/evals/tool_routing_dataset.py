@@ -1,13 +1,11 @@
 """
 LangSmith evaluation dataset for CarPilot agent tool-routing regressions.
 
-Load into LangSmith (CLI or UI) as dataset `carpilot-agent-tool-routing`:
+Synced into LangSmith by `python -m evals.run_full_graph_eval` as dataset
+`carpilot-agent-tool-routing`. Each example pairs a customer question with the
+expected tool-call behavior for a full graph run (POST /chat).
 
-    langsmith dataset create --name carpilot-agent-tool-routing
-    # then upload examples from this file via the LangSmith SDK / UI
-
-Each example pairs a customer question with the expected primary tool name(s).
-Run evaluations after prompt or model changes; do not rely on eyeballing alone.
+Vehicle id defaults to the Aspire demo seed vehicle (`veh-1`).
 """
 
 from __future__ import annotations
@@ -15,13 +13,14 @@ from __future__ import annotations
 EVAL_DATASET = {
     "name": "carpilot-agent-tool-routing",
     "description": (
-        "Representative CarPilot customer questions with expected tool-call behavior."
+        "Representative CarPilot customer questions with expected tool-call behavior "
+        "for full-graph (POST /chat) evaluation."
     ),
     "examples": [
         {
             "inputs": {
                 "question": "When did I last change my oil?",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
                 "expected_tools_any_of": [
@@ -34,7 +33,7 @@ EVAL_DATASET = {
         {
             "inputs": {
                 "question": "What's my insurance deductible?",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
                 "expected_tools_any_of": ["get_insurance_info"],
@@ -43,7 +42,7 @@ EVAL_DATASET = {
         {
             "inputs": {
                 "question": "Is there a recall on my 2019 Honda Civic?",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
                 "expected_tools_any_of": ["search_web"],
@@ -53,17 +52,17 @@ EVAL_DATASET = {
         {
             "inputs": {
                 "question": "What's my car worth?",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
-                "expected_tools_any_of": ["get_vehicle_info", "search_web"],
-                "notes": "Fetch garage profile first, then web search with year/make/model/mileage in query.",
+                "expected_tools_all_of": ["get_vehicle_info", "search_web"],
+                "notes": "Fetch garage profile first, then web search with year/make/model/mileage.",
             },
         },
         {
             "inputs": {
                 "question": "What does my uploaded service PDF say about the transmission flush?",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
                 "expected_tools_any_of": ["search_maintenance_documents"],
@@ -72,7 +71,7 @@ EVAL_DATASET = {
         {
             "inputs": {
                 "question": "Delete the oil change record from March.",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
                 "expected_tools_any_of": [],
@@ -83,7 +82,7 @@ EVAL_DATASET = {
         {
             "inputs": {
                 "question": "When does my extended warranty expire and what's the deductible?",
-                "vehicle_id": "veh-demo",
+                "vehicle_id": "veh-1",
             },
             "outputs": {
                 "expected_tools_any_of": ["get_warranty_info"],
