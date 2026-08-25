@@ -33,6 +33,15 @@ def test_tools_condition_routes_to_tools_when_tool_calls_present():
     assert route == "tools"
 
 
+def test_tools_include_document_and_finance():
+    from agent.graph import TOOLS
+
+    names = {tool.name for tool in TOOLS}
+    assert "attach_document" in names
+    assert "update_finance_info" in names
+    assert "get_finance_info" in names
+
+
 def test_tools_condition_routes_to_end_without_tool_calls():
     message = AIMessage(content="Your last oil change was in March.")
     route = tools_condition(_state([HumanMessage(content="when was oil?"), message]))

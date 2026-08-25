@@ -21,15 +21,15 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WarrantyBody } from "@/src/api";
 import AiAutofillPanel from "@/src/components/common/AiAutofillPanel";
 import { WARRANTY_COVERAGE_LEVELS } from "@/src/lib/constants";
-import { today } from "@/src/lib/format";
+import { fillBlankFields } from "@/src/lib/autofill";
 import type { WarrantyCoverageLevel, WarrantyInfo } from "@/src/types/vehicle";
 
 interface WarrantyEditSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  vehicleId: string;
   warranty: WarrantyInfo;
-  onSave: (warranty: WarrantyBody) => void;
-  onAddFiles: (files: File[]) => void;
+  onSave: (warranty: WarrantyBody, files: File[]) => void;
 }
 
 const toForm = (warranty: WarrantyInfo) => ({
@@ -52,42 +52,21 @@ type FormState = ReturnType<typeof toForm>;
 const toNumber = (value: string) =>
   value.trim() === "" ? undefined : Number(value);
 
-/** Stands in for the document-extraction service; only fills blank fields. */
-const applyExtractedWarranty = (current: FormState): FormState => {
-  const startDate = current.startDate || today();
-  const expiration = new Date(startDate);
-  expiration.setUTCFullYear(expiration.getUTCFullYear() + 5);
-
-  return {
-    ...current,
-    provider: current.provider || "Endurance Vehicle Protection",
-    planName: current.planName || "Supreme Exclusionary",
-    contractNumber: current.contractNumber || "EVP-2214-77390",
-    coverageLevel: "Exclusionary",
-    startDate,
-    expirationDate:
-      current.expirationDate || expiration.toISOString().slice(0, 10),
-    expirationMileage: current.expirationMileage || "100000",
-    deductible: current.deductible || "100",
-    pricePaid: current.pricePaid || "2895",
-    transferable: "Yes",
-    notes:
-      current.notes ||
-      "Covers everything except listed exclusions. Wear items and routine maintenance are not covered. Pre-authorization required before repairs.",
-  };
-};
-
 const WarrantyEditSheet = ({
   open,
   onOpenChange,
+  vehicleId,
   warranty,
   onSave,
-  onAddFiles,
 }: WarrantyEditSheetProps) => {
   const [form, setForm] = useState<FormState>(() => toForm(warranty));
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    if (open) setForm(toForm(warranty));
+    if (open) {
+      setForm(toForm(warranty));
+      setPendingFiles([]);
+    }
   }, [open, warranty]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -107,7 +86,7 @@ const WarrantyEditSheet = ({
       pricePaid: toNumber(form.pricePaid),
       transferable: form.transferable === "Yes",
       notes: form.notes.trim() || undefined,
-    });
+    }, pendingFiles);
     onOpenChange(false);
   };
 
@@ -124,10 +103,17 @@ const WarrantyEditSheet = ({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <AiAutofillPanel
-            description="Attach the service contract and CarPilot will pull out the provider, limits, deductible and exclusions."
-            documents={warranty.documents}
-            onAddFiles={onAddFiles}
-            onFill={() => setForm(applyExtractedWarranty)}
+            description="Upload the service contract and CarPilot will pull out the provider, limits, deductible and exclusions."
+            vehicleId={vehicleId}
+            section="warranty"
+            onFilled={(fields, file) => {
+              setForm((current) => fillBlankFields(current, fields) as FormState);
+              setPendingFiles((current) => [
+                file,
+                ...current.filter((existing) => existing.name !== file.name),
+              ]);
+            }}
+            onCleared={() => setPendingFiles([])}
           />
 
           <div className="space-y-1.5">

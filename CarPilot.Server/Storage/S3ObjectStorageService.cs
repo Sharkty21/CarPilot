@@ -71,6 +71,7 @@ public sealed class S3ObjectStorageService(IConfiguration configuration, ILogger
     private BucketConnection ParseConnection(string name)
     {
         var connectionString = configuration.GetConnectionString(name)
+            ?? configuration.GetConnectionString($"rustfs-{name}")
             ?? throw new InvalidOperationException($"Connection string '{name}' was not found.");
 
         var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

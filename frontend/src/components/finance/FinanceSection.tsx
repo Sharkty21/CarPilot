@@ -138,9 +138,12 @@ const FinanceSection = ({ vehicle }: FinanceSectionProps) => {
       <FinanceEditSheet
         open={editOpen}
         onOpenChange={setEditOpen}
+        vehicleId={vehicle.id}
         finance={finance}
-        onSave={updateFinance}
-        onAddFiles={addFinanceFiles}
+        onSave={async (next, files) => {
+          await updateFinance(next);
+          if (files.length) await addDocuments("finance", files);
+        }}
       />
     </>
   );

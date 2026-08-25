@@ -21,17 +21,34 @@ public class AssistantController(IAssistantService assistant) : GarageController
 
     /// <summary>Streams assistant tokens and tool/citation events as Server-Sent Events.</summary>
     [HttpPost("ask/stream")]
-    public async Task StreamAsk(
-        string vehicleId,
-        [FromBody] AskAssistantRequest request,
-        CancellationToken cancellationToken)
+    [RequestSizeLimit(50_000_000)]
+    public async Task StreamAsk(string vehicleId, CancellationToken cancellationToken)
     {
+        var request = new AskAssistantRequest();
+        IReadOnlyList<IFormFile> files = [];
+
+        if (Request.HasFormContentType)
+        {
+            var form = await Request.ReadFormAsync(cancellationToken);
+            request.Question = form["question"].ToString();
+            request.ThreadId = form["threadId"].ToString();
+            files = form.Files.GetFiles("files");
+        }
+        else
+        {
+            var body = await Request.ReadFromJsonAsync<AskAssistantRequest>(cancellationToken);
+            if (body is not null)
+            {
+                request = body;
+            }
+        }
+
         Response.ContentType = "text/event-stream";
         Response.Headers.CacheControl = "no-cache";
         Response.Headers.Connection = "keep-alive";
         Response.Headers["X-Accel-Buffering"] = "no";
 
-        await foreach (var evt in assistant.AskStreamAsync(vehicleId, request, cancellationToken))
+        await foreach (var evt in assistant.AskStreamAsync(vehicleId, request, files, cancellationToken))
         {
             var json = JsonSerializer.Serialize(evt, JsonOptions);
             await Response.WriteAsync($"data: {json}\n\n", cancellationToken);

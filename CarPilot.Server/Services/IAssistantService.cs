@@ -1,4 +1,5 @@
 using CarPilot.Server.Contracts;
+using Microsoft.AspNetCore.Http;
 
 namespace CarPilot.Server.Services;
 
@@ -11,5 +12,6 @@ public interface IAssistantService
     IAsyncEnumerable<AssistantStreamEvent> AskStreamAsync(
         string vehicleId,
         AskAssistantRequest request,
+        IReadOnlyList<IFormFile>? files = null,
         CancellationToken cancellationToken = default);
 }

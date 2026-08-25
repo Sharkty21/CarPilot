@@ -84,6 +84,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<IAuthService, DemoAuthService>();
 
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddScoped<IGarageRepository, EfGarageRepository>();
 builder.Services.AddScoped<IGarageService, GarageService>();
@@ -92,6 +93,8 @@ builder.Services.AddSingleton<IObjectStorageService, S3ObjectStorageService>();
 builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
 builder.Services.AddScoped<IDocumentIndexService, DocumentIndexService>();
 builder.Services.AddScoped<IFileUploadService, FileUploadService>();
+builder.Services.AddScoped<IAiDocumentClient, AiDocumentClient>();
+builder.Services.AddSingleton<IUploadStagingService, UploadStagingService>();
 
 builder.Services.AddHttpClient("carpilot-ai", client =>
 {

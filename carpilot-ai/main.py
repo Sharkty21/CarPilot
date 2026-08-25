@@ -19,7 +19,8 @@ from agent.message_utils import tools_called_from_messages
 from clients.auth_context import access_token_scope
 from clients.db import close_pool, init_pool, list_documents
 from config import get_settings
-from ingestion.pipeline import ingest_document
+from ingestion.autofill import extract_section_fields, read_document_text
+from ingestion.pipeline import index_redacted_document, ingest_document
 from seed_docs import seed_demo_documents
 
 logging.basicConfig(level=logging.INFO)
@@ -149,6 +150,19 @@ def _citations_from_tool(name: str, output: Any) -> list[dict[str, Any]]:
                     "label": record.get("description") or record.get("type") or "record",
                     "detail": record.get("date"),
                     "recordId": record.get("id"),
+                }
+            )
+    elif name == "attach_document":
+        if isinstance(payload, dict) and payload.get("attached"):
+            section = payload.get("section") or "garage"
+            citations.append(
+                {
+                    "id": f"cite-{uuid.uuid4()}",
+                    "kind": "document",
+                    "label": f"Filed on {section}",
+                    "detail": ", ".join(
+                        name for name in (payload.get("documentNames") or [])[:3] if name
+                    ),
                 }
             )
     elif name == "search_web":
@@ -283,6 +297,91 @@ async def chat_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.post("/documents/extract-text")
+async def extract_document_text(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Read a document and return plain text for the chat agent. Does not persist."""
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    filename = file.filename or "upload.bin"
+    try:
+        text = await read_document_text(
+            filename=filename,
+            content=content,
+            content_type=file.content_type,
+        )
+        return {"filename": filename, "text": text}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("document text extraction failed")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not read this document: {exc}",
+        ) from exc
+
+
+@app.post("/documents/autofill")
+async def autofill_document(
+    file: UploadFile = File(...),
+    section: str = Form(...),
+) -> dict[str, Any]:
+    """Extract structured garage fields from a document. Does not persist."""
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    filename = file.filename or "upload.bin"
+    try:
+        fields = await extract_section_fields(
+            section=section,
+            filename=filename,
+            content=content,
+            content_type=file.content_type,
+        )
+        return {"sourceName": filename, "fields": fields}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("document autofill failed")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not auto-fill from this document: {exc}",
+        ) from exc
+
+
+@app.post("/documents/ingest")
+async def ingest_existing_document(
+    file: UploadFile = File(...),
+    vehicle_id: str = Form(...),
+    user_id: str = Form(...),
+    bucket_key: str = Form(...),
+    garage_document_id: str = Form(default=""),
+    section: str = Form(default=""),
+) -> dict[str, Any]:
+    """Index a file the BFF already stored. Extract → redact → embed. No second original."""
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    if not bucket_key.strip():
+        raise HTTPException(status_code=400, detail="bucket_key is required")
+    filename = file.filename or "upload.bin"
+    try:
+        return await index_redacted_document(
+            content=content,
+            filename=filename,
+            content_type=file.content_type,
+            vehicle_id=vehicle_id,
+            user_id=user_id,
+            bucket_key=bucket_key.strip(),
+            garage_document_id=garage_document_id.strip() or None,
+            section=section.strip() or None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("document RAG ingest failed")
+        raise HTTPException(
+            status_code=422,
+            detail=f"Ingestion failed closed (no unredacted text was embedded): {exc}",
+        ) from exc
 
 
 @app.post("/documents/upload")

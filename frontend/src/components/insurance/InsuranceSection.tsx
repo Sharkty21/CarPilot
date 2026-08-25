@@ -81,9 +81,12 @@ const InsuranceSection = ({ vehicle }: InsuranceSectionProps) => {
       <InsuranceEditSheet
         open={editOpen}
         onOpenChange={setEditOpen}
+        vehicleId={vehicle.id}
         insurance={insurance}
-        onSave={updateInsurance}
-        onAddFiles={addInsuranceFiles}
+        onSave={async (next, files) => {
+          await updateInsurance(next);
+          if (files.length) await addDocuments("insurance", files);
+        }}
       />
     </>
   );

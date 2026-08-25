@@ -10,6 +10,14 @@ import type {
 /** Vehicle sections that own an add/remove-only document list. */
 export type DocumentSection = "finance" | "insurance" | "warranty";
 
+/** Sections the document-extraction endpoint can fill. */
+export type AutofillSection = DocumentSection | "maintenance";
+
+export interface AutofillResult {
+  sourceName: string;
+  fields: Record<string, string | number | boolean | null>;
+}
+
 /**
  * The section edit sheets always submit their whole form, so these requests
  * replace the stored values outright. Documents are excluded because they are

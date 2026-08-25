@@ -21,7 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import AiAutofillPanel from "@/src/components/common/AiAutofillPanel";
 import FileDropzone from "@/src/components/common/FileDropzone";
 import { MAINTENANCE_TYPES } from "@/src/lib/constants";
-import { filesToDocuments, newId, today } from "@/src/lib/format";
+import { fillBlankFields } from "@/src/lib/autofill";
+import { filesToDocuments, newId } from "@/src/lib/format";
 import type {
   MaintenanceRecord,
   MaintenanceRecordType,
@@ -69,18 +70,6 @@ const toForm = (record: MaintenanceRecord | null): FormState =>
         documents: record.documents,
       }
     : blankForm;
-
-/** Stands in for the document-extraction service; only fills blank fields. */
-const applyExtractedRecord = (current: FormState): FormState => ({
-  ...current,
-  description:
-    current.description ||
-    "Oil and filter change, tire rotation, multi-point inspection",
-  date: current.date || today(),
-  cost: current.cost || "94.75",
-  mileage: current.mileage || "48210",
-  shop: current.shop || "Northside Toyota Service",
-});
 
 const MaintenanceRecordSheet = ({
   open,
@@ -134,9 +123,28 @@ const MaintenanceRecordSheet = ({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <AiAutofillPanel
-            description="Attach an invoice or receipt below and CarPilot will read out the work, date, cost and shop."
-            documents={form.documents}
-            onFill={() => setForm(applyExtractedRecord)}
+            description="Upload an invoice or receipt and CarPilot will read out the work, date, cost and shop."
+            vehicleId={vehicleId}
+            section="maintenance"
+            onFilled={(fields, file) => {
+              setForm((current) => ({
+                ...fillBlankFields(
+                  {
+                    type: current.type,
+                    description: current.description,
+                    date: current.date,
+                    cost: current.cost,
+                    mileage: current.mileage,
+                    shop: current.shop,
+                  },
+                  fields
+                ),
+                documents: [
+                  ...filesToDocuments([file]),
+                  ...current.documents.filter((doc) => doc.name !== file.name),
+                ],
+              } as FormState));
+            }}
           />
 
           <div className="space-y-1.5">

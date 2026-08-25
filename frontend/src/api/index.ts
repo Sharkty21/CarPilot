@@ -14,6 +14,7 @@ export {
   useUpdateVehicleDetails,
   useUpdateWarranty,
   useVehicles,
+  extractDocumentFields,
 } from "./vehicles";
 
 export {
@@ -28,13 +29,15 @@ export {
   useSaveConversation,
 } from "./conversations";
 
-export { streamAssistant } from "./assistant";
+export { streamAssistant, isMutatingAssistantTool, toolStatusLabel } from "./assistant";
 export type { AssistantStreamEvent } from "./assistant";
 
 export type {
   AddDocumentsBody,
   AskAssistantBody,
   AssistantAnswer,
+  AutofillResult,
+  AutofillSection,
   DocumentSection,
   FinanceBody,
   InsuranceBody,

@@ -197,9 +197,12 @@ const WarrantySection = ({ vehicle }: WarrantySectionProps) => {
       <WarrantyEditSheet
         open={editOpen}
         onOpenChange={setEditOpen}
+        vehicleId={vehicle.id}
         warranty={warranty}
-        onSave={updateWarranty}
-        onAddFiles={addWarrantyFiles}
+        onSave={async (next, files) => {
+          await updateWarranty(next);
+          if (files.length) await addDocuments("warranty", files);
+        }}
       />
     </>
   );

@@ -15,6 +15,8 @@ from psycopg_pool import AsyncConnectionPool
 from agent.prompts import SYSTEM_PROMPT
 from agent.state import AgentState
 from config import get_settings
+from tools.document_tools import attach_document
+from tools.finance_tools import get_finance_info, update_finance_info
 from tools.insurance_tools import get_insurance_info, update_insurance_info
 from tools.maintenance_tools import (
     create_maintenance_record,
@@ -41,6 +43,9 @@ TOOLS = [
     update_insurance_info,
     get_warranty_info,
     update_warranty_info,
+    get_finance_info,
+    update_finance_info,
+    attach_document,
 ]
 
 _checkpointer_pool: AsyncConnectionPool | None = None
@@ -69,7 +74,7 @@ def build_graph(checkpointer: AsyncPostgresSaver | None = None):
             content=(
                 f"Active garage context: user_id={state.get('user_id')}, "
                 f"vehicle_id={state.get('vehicle_id')}. "
-                "Garage-scoped tools (maintenance, insurance, warranty, documents, "
+                "Garage-scoped tools (maintenance, insurance, warranty, finance, documents, "
                 "get_vehicle_info) apply to this vehicle automatically. "
                 "search_web accepts only a query string — never pass vehicle_id. "
                 "For worth/price/resale/trade-in: get_vehicle_info then search_web with "

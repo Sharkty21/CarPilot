@@ -10,6 +10,8 @@ import type {
   InsuranceBody,
   VehicleDetailsBody,
   WarrantyBody,
+  AutofillResult,
+  AutofillSection,
 } from "./types";
 
 export const fetchVehicles = () => apiClient.get<OwnedVehicle[]>("/vehicles");
@@ -127,3 +129,17 @@ export const useRemoveDocument = () =>
         `/vehicles/${vehicleId}/documents/${section}/${documentId}`
       )
   );
+
+export const extractDocumentFields = (
+  vehicleId: string,
+  section: AutofillSection,
+  file: File
+) => {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("section", section);
+  return apiClient.postForm<AutofillResult>(
+    `/vehicles/${vehicleId}/documents/extract`,
+    form
+  );
+};

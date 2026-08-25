@@ -97,7 +97,7 @@ public class AddDocumentsRequest
     public List<VehicleDocument> Documents { get; set; } = [];
 }
 
-/// <summary>A question for the assistant, plus the names of any files attached to it.</summary>
+/// <summary>A question for the assistant. Files are sent separately as multipart form data.</summary>
 public class AskAssistantRequest
 {
     public string Question { get; set; } = string.Empty;

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, SendHorizontal, Sparkles, Square, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,12 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { streamAssistant } from "@/src/api/assistant";
+import {
+  isMutatingAssistantTool,
+  queryKeys,
+  streamAssistant,
+  toolStatusLabel,
+} from "@/src/api";
 import { UPLOAD_ACCEPT } from "@/src/lib/constants";
 import { useGarage } from "@/src/contexts/garageContext";
 import { describeVehicle, newId } from "@/src/lib/format";
@@ -36,13 +42,13 @@ const ChatDialog = ({
   onOpenRecord,
 }: ChatDialogProps) => {
   const { selectedVehicle, saveConversation } = useGarage();
+  const queryClient = useQueryClient();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
   const [streaming, setStreaming] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string>(newId("conv"));
@@ -58,7 +64,7 @@ const ChatDialog = ({
     setStreaming(false);
     setMessages((current) =>
       current.map((message) =>
-        message.streaming ? { ...message, streaming: false } : message
+        message.streaming ? { ...message, streaming: false, status: undefined } : message
       )
     );
   }, []);
@@ -115,6 +121,7 @@ const ChatDialog = ({
       let content = "";
       const citations: ChatCitation[] = [];
       const seenCitationKeys = new Set<string>();
+      let garageMutated = false;
 
       try {
         await streamAssistant(
@@ -123,6 +130,7 @@ const ChatDialog = ({
             question,
             attachmentNames: files.map((file) => file.name),
             threadId: conversationId,
+            files: files.map((file) => file.file).filter((file): file is File => Boolean(file)),
           },
           {
             signal: abort.signal,
@@ -131,7 +139,20 @@ const ChatDialog = ({
 
               if (event.type === "token") {
                 content += event.content;
-                updateAssistant({ content, streaming: true });
+                updateAssistant({ content, streaming: true, status: undefined });
+                return;
+              }
+
+              if (event.type === "tool") {
+                if (isMutatingAssistantTool(event.name)) {
+                  garageMutated = true;
+                }
+                if (event.status === "start" && !content) {
+                  updateAssistant({
+                    status: toolStatusLabel(event.name, event.content),
+                    streaming: true,
+                  });
+                }
                 return;
               }
 
@@ -152,6 +173,7 @@ const ChatDialog = ({
                     event.content ||
                     "I couldn't reach CarPilot just now. Please try again.",
                   streaming: false,
+                  status: undefined,
                 });
                 setStreaming(false);
                 return;
@@ -162,6 +184,7 @@ const ChatDialog = ({
                   content: content || "I didn't get a response back — try asking again.",
                   citations: citations.length ? citations : undefined,
                   streaming: false,
+                  status: undefined,
                 });
                 setStreaming(false);
               }
@@ -170,7 +193,7 @@ const ChatDialog = ({
         );
       } catch (error) {
         if (abort.signal.aborted) {
-          updateAssistant({ content: content || "Stopped.", streaming: false });
+          updateAssistant({ content: content || "Stopped.", streaming: false, status: undefined });
           setStreaming(false);
           return;
         }
@@ -180,15 +203,22 @@ const ChatDialog = ({
               ? `I couldn't reach CarPilot just now — ${error.message}`
               : "I couldn't reach CarPilot just now. Please try again.",
           streaming: false,
+          status: undefined,
         });
         setStreaming(false);
       } finally {
+        if (garageMutated) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.vehicles });
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.maintenanceRecords(vehicle.id),
+          });
+        }
         if (abortRef.current === abort) {
           abortRef.current = null;
         }
       }
     },
-    []
+    [queryClient]
   );
 
   // Reset for a fresh conversation each time the window opens, then fire the seed prompt.
@@ -224,7 +254,12 @@ const ChatDialog = ({
           sharedWith: null,
           date: new Date().toISOString().slice(0, 10),
           relatedRecordIds,
-          messages,
+          messages: messages.map((message) => ({
+            ...message,
+            streaming: undefined,
+            status: undefined,
+            attachments: message.attachments?.map(({ file: _file, ...attachment }) => attachment),
+          })),
         };
         saveConversation(conversation);
       }
@@ -240,12 +275,20 @@ const ChatDialog = ({
         id: newId("att"),
         name: file.name,
         mimeType: file.type,
+        file,
       })),
     ]);
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen, eventDetails) => {
+        const reason = (eventDetails as { reason?: string } | undefined)?.reason;
+        if (!nextOpen && reason === "focus-out") return;
+        handleClose(nextOpen);
+      }}
+    >
       <DialogContent className="flex h-[85vh] w-full max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
         <DialogHeader className="flex-none gap-1 border-b border-blue-50 px-6 py-4 pr-16">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -327,26 +370,25 @@ const ChatDialog = ({
           )}
 
           <div className="flex items-end gap-2 rounded-2xl border border-blue-100 bg-white p-2 focus-within:border-blue-300">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Attach a file"
-              className="text-slate-500"
-              onClick={() => fileInputRef.current?.click()}
+            <label
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "cursor-pointer text-slate-500"
+              )}
             >
               <Paperclip />
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={UPLOAD_ACCEPT}
-              className="hidden"
-              onChange={(event) => {
-                attachFiles(event.target.files);
-                event.target.value = "";
-              }}
-            />
+              <span className="sr-only">Attach a file</span>
+              <input
+                type="file"
+                multiple
+                accept={UPLOAD_ACCEPT}
+                className="sr-only"
+                onChange={(event) => {
+                  attachFiles(event.target.files);
+                  event.target.value = "";
+                }}
+              />
+            </label>
             <Textarea
               rows={1}
               value={input}

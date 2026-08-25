@@ -20,15 +20,15 @@ import {
 import type { FinanceBody } from "@/src/api";
 import AiAutofillPanel from "@/src/components/common/AiAutofillPanel";
 import { FINANCE_KINDS } from "@/src/lib/constants";
-import { today } from "@/src/lib/format";
+import { fillBlankFields } from "@/src/lib/autofill";
 import type { FinanceInfo, FinanceKind } from "@/src/types/vehicle";
 
 interface FinanceEditSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  vehicleId: string;
   finance: FinanceInfo;
-  onSave: (finance: FinanceBody) => void;
-  onAddFiles: (files: File[]) => void;
+  onSave: (finance: FinanceBody, files: File[]) => void;
 }
 
 type NumericKey =
@@ -71,49 +71,21 @@ const toForm = (finance: FinanceInfo): FormState => ({
   annualMileageAllowance: finance.annualMileageAllowance?.toString() ?? "",
 });
 
-/**
- * Stands in for the document-extraction service; only fills blank fields, and
- * reads the contract as either a loan or a lease based on the selected kind.
- */
-const applyExtractedFinance = (current: FormState): FormState => {
-  const base = { ...current, startDate: current.startDate || today() };
-
-  if (current.kind === "Leasing") {
-    return {
-      ...base,
-      lender: base.lender || "GM Financial",
-      termMonths: base.termMonths || "36",
-      monthlyPayment: base.monthlyPayment || "612.00",
-      amountFinanced: base.amountFinanced || "52400",
-      downPayment: base.downPayment || "3500",
-      residualValue: base.residualValue || "31440",
-      annualMileageAllowance: base.annualMileageAllowance || "15000",
-    };
-  }
-
-  return {
-    ...base,
-    lender: base.lender || "Summit Credit Union",
-    termMonths: base.termMonths || "60",
-    monthlyPayment: base.monthlyPayment || "468.32",
-    apr: base.apr || "3.24",
-    amountFinanced: base.amountFinanced || "26000",
-    downPayment: base.downPayment || "5000",
-    payoffAmount: base.payoffAmount || "9840.55",
-  };
-};
-
 const FinanceEditSheet = ({
   open,
   onOpenChange,
+  vehicleId,
   finance,
   onSave,
-  onAddFiles,
 }: FinanceEditSheetProps) => {
   const [form, setForm] = useState<FormState>(() => toForm(finance));
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    if (open) setForm(toForm(finance));
+    if (open) {
+      setForm(toForm(finance));
+      setPendingFiles([]);
+    }
   }, [open, finance]);
 
   const set = (key: keyof FormState, value: string) =>
@@ -132,7 +104,7 @@ const FinanceEditSheet = ({
       lender: form.lender.trim() || undefined,
       startDate: form.startDate || undefined,
       ...numeric,
-    });
+    }, pendingFiles);
     onOpenChange(false);
   };
 
@@ -179,12 +151,19 @@ const FinanceEditSheet = ({
               <AiAutofillPanel
                 description={
                   isLease
-                    ? "Attach the lease agreement and CarPilot will pull out the term, payment, residual and mileage allowance."
-                    : "Attach the loan or retail installment contract and CarPilot will pull out the lender, term, payment and APR."
+                    ? "Upload the lease agreement and CarPilot will pull out the term, payment, residual and mileage allowance."
+                    : "Upload the loan or retail installment contract and CarPilot will pull out the lender, term, payment and APR."
                 }
-                documents={finance.documents}
-                onAddFiles={onAddFiles}
-                onFill={() => setForm(applyExtractedFinance)}
+                vehicleId={vehicleId}
+                section="finance"
+                onFilled={(fields, file) => {
+                  setForm((current) => fillBlankFields(current, fields) as FormState);
+                  setPendingFiles((current) => [
+                    file,
+                    ...current.filter((existing) => existing.name !== file.name),
+                  ]);
+                }}
+                onCleared={() => setPendingFiles([])}
               />
 
               <div className="space-y-1.5">

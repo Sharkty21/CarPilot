@@ -17,6 +17,8 @@ export interface ChatAttachment {
   id: string;
   name: string;
   mimeType: string;
+  /** Present while composing / sending; omitted from saved conversation history. */
+  file?: File;
 }
 
 export interface ChatMessage {
@@ -28,6 +30,8 @@ export interface ChatMessage {
   attachments?: ChatAttachment[];
   /** True while tokens are still arriving from the model. */
   streaming?: boolean;
+  /** Shown instead of an empty bubble while a tool (e.g. reading a document) is running. */
+  status?: string;
 }
 
 export interface Conversation {

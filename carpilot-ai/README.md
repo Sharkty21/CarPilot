@@ -4,7 +4,8 @@ Conversational AI microservice for CarPilot. FastAPI + LangGraph agent with:
 
 - RAG over customer documents (pgvector)
 - Open-web research
-- Maintenance / insurance / warranty CRUD via the .NET API
+- Maintenance / insurance / warranty / finance CRUD via the .NET API
+- `attach_document` to file a chat attachment onto insurance, warranty, or finance
 - Presidio PII redaction before any embedding
 - LangSmith tracing on every run
 - AsyncPostgresSaver checkpointer for multi-turn threads
@@ -22,13 +23,20 @@ The AppHost runs this with `uv` via `AddUvicornApp(...).WithUv()`. Required para
 |--------|------|---------|
 | POST | `/chat` | Non-streaming turn (`ainvoke`) |
 | POST | `/chat/stream` | SSE stream: `token`, `tool`, `citation`, `done`, `error` |
-| POST | `/documents/upload` | Store original → extract → redact → embed |
+| POST | `/documents/extract-text` | Read a file (PDF / image) to plain text; does not persist |
+| POST | `/documents/autofill` | Extract structured insurance / warranty / finance / maintenance fields |
+| POST | `/documents/ingest` | BFF already stored the original; extract → redact → embed |
+| POST | `/documents/upload` | Store original → extract → redact → embed (seed / demo docs) |
 | GET | `/documents/{vehicle_id}` | Document metadata listing |
 | GET | `/health` | Health check |
 
 Pass the caller's `Authorization: Bearer <jwt>` on chat requests. That token is forwarded on tool calls to the .NET API so garage writes run as the signed-in user.
 
-The ASP.NET server exposes `POST /api/vehicles/{id}/assistant/ask/stream` as a BFF that proxies this SSE stream to the React chat UI.
+The ASP.NET server exposes `POST /api/vehicles/{id}/assistant/ask/stream` as a BFF that reads any attached files, stages them, and proxies this SSE stream to the React chat UI.
+
+`/documents/extract-text` and `/documents/autofill` are called by the BFF (edit sheets and chat), not by the browser. They return text/fields only — they do not persist or embed.
+
+Garage uploads (UI and `attach_document`) call `/documents/ingest` after the BFF has already stored the original. That path never `put_object`s again.
 
 ## Demo seed documents
 
@@ -64,16 +72,21 @@ config = {
 4. Open a matching run — tool calls appear as child spans under the parent agent run (vector search, web search, CRUD tools).
 5. To follow one chat thread across turns, filter or search by `thread_id` (LangGraph checkpointer thread), which is also in `configurable.thread_id`.
 
-Ingestion (`redact_pii`, `embed_and_store`, `ingest_document`) is also `@traceable`, so a bad RAG answer can be traced back to the ingestion run that produced the chunk — not only the chat run.
+Ingestion (`redact_pii`, `embed_and_store`, `index_redacted_document`, `ingest_document`) is also `@traceable`, so a bad RAG answer can be traced back to the ingestion run that produced the chunk — not only the chat run.
 
 ## Ingestion pipeline (fail closed)
 
+Garage files (UI / `attach_document`):
+
 ```
-upload → private bucket (original)
+BFF stores original in documents bucket + vehicle_documents
+      → POST /documents/ingest (no second original)
       → extract text
       → Presidio redact  ← gate; unredacted text never reaches embed
       → chunk + embed redacted text into pgvector
 ```
+
+Seed / demo docs (`POST /documents/upload`) still upload an original first, then run the same extract → redact → embed steps.
 
 ## Tests
 

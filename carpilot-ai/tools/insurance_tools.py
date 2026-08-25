@@ -48,11 +48,13 @@ async def update_insurance_info(
     agent_name: Optional[str] = None,
     agent_phone: Optional[str] = None,
 ) -> str:
-    """Replace the current vehicle's insurance fields via the CarPilot API.
+    """Update the current vehicle's insurance fields via the CarPilot API.
 
-    IMPORTANT: Before calling this tool, confirm with the user in natural language
-    that they want to overwrite their insurance information. Do not call until they agree.
-    The API replaces the insurance section; omit fields only when the user wants them cleared.
+    When the user attached an insurance document in this turn, call this without
+    asking first — attaching the paperwork is consent to save those fields.
+    Otherwise, confirm in natural language before overwriting existing insurance information.
+
+    Omit any field you did not extract; existing garage values for omitted fields are kept.
 
     The current vehicle is selected automatically — do not pass a vehicle id.
 

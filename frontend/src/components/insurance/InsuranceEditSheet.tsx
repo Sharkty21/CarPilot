@@ -12,14 +12,15 @@ import {
 } from "@/components/ui/sheet";
 import type { InsuranceBody } from "@/src/api";
 import AiAutofillPanel from "@/src/components/common/AiAutofillPanel";
+import { fillBlankFields } from "@/src/lib/autofill";
 import type { InsuranceInfo } from "@/src/types/vehicle";
 
 interface InsuranceEditSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  vehicleId: string;
   insurance: InsuranceInfo;
-  onSave: (insurance: InsuranceBody) => void;
-  onAddFiles: (files: File[]) => void;
+  onSave: (insurance: InsuranceBody, files: File[]) => void;
 }
 
 const toForm = (insurance: InsuranceInfo) => ({
@@ -36,34 +37,21 @@ const toForm = (insurance: InsuranceInfo) => ({
 
 type FormState = ReturnType<typeof toForm>;
 
-/** Stands in for the document-extraction service; only fills blank fields. */
-const applyExtractedInsurance = (current: FormState): FormState => {
-  const year = new Date().getFullYear();
-  return {
-    ...current,
-    insurer: current.insurer || "Bluepoint Mutual",
-    policyNumber: current.policyNumber || "BPM-4471-88231",
-    coverageType: current.coverageType || "Full coverage",
-    monthlyPremium: current.monthlyPremium || "142.50",
-    deductible: current.deductible || "500",
-    effectiveDate: current.effectiveDate || `${year}-01-01`,
-    renewalDate: current.renewalDate || `${year}-12-31`,
-    agentName: current.agentName || "Dana Whitfield",
-    agentPhone: current.agentPhone || "(555) 214-8890",
-  };
-};
-
 const InsuranceEditSheet = ({
   open,
   onOpenChange,
+  vehicleId,
   insurance,
   onSave,
-  onAddFiles,
 }: InsuranceEditSheetProps) => {
   const [form, setForm] = useState<FormState>(() => toForm(insurance));
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
-    if (open) setForm(toForm(insurance));
+    if (open) {
+      setForm(toForm(insurance));
+      setPendingFiles([]);
+    }
   }, [open, insurance]);
 
   const set = (key: keyof FormState, value: string) =>
@@ -82,7 +70,7 @@ const InsuranceEditSheet = ({
       renewalDate: form.renewalDate || undefined,
       agentName: form.agentName.trim() || undefined,
       agentPhone: form.agentPhone.trim() || undefined,
-    });
+    }, pendingFiles);
     onOpenChange(false);
   };
 
@@ -98,10 +86,17 @@ const InsuranceEditSheet = ({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <AiAutofillPanel
-            description="Attach your declarations page or ID card and CarPilot will pull out the policy, premium, deductible and agent."
-            documents={insurance.documents}
-            onAddFiles={onAddFiles}
-            onFill={() => setForm(applyExtractedInsurance)}
+            description="Upload your declarations page or ID card and CarPilot will pull out the policy, premium, deductible and agent."
+            vehicleId={vehicleId}
+            section="insurance"
+            onFilled={(fields, file) => {
+              setForm((current) => fillBlankFields(current, fields) as FormState);
+              setPendingFiles((current) => [
+                file,
+                ...current.filter((existing) => existing.name !== file.name),
+              ]);
+            }}
+            onCleared={() => setPendingFiles([])}
           />
 
           <div className="space-y-1.5">

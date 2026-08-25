@@ -90,6 +90,32 @@ class DotNetApiClient:
             response.raise_for_status()
             return response.json()
 
+    async def update_finance(
+        self,
+        vehicle_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        async with self._client() as client:
+            response = await client.put(
+                f"/api/vehicles/{vehicle_id}/finance",
+                json=payload,
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def commit_staged_document(
+        self,
+        vehicle_id: str,
+        section: str,
+        staging_id: str,
+    ) -> dict[str, Any]:
+        async with self._client() as client:
+            response = await client.post(
+                f"/api/vehicles/{vehicle_id}/documents/{section}/commit/{staging_id}"
+            )
+            response.raise_for_status()
+            return response.json()
+
 
 _api_client: DotNetApiClient | None = None
 

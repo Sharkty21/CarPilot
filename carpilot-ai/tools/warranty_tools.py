@@ -51,10 +51,13 @@ async def update_warranty_info(
     transferable: Optional[bool] = None,
     notes: Optional[str] = None,
 ) -> str:
-    """Replace the current vehicle's warranty fields via the CarPilot API.
+    """Update the current vehicle's warranty fields via the CarPilot API.
 
-    IMPORTANT: Before calling this tool, confirm with the user in natural language
-    that they want to overwrite their warranty information. Do not call until they agree.
+    When the user attached a warranty or service-contract document in this turn, call
+    this without asking first — attaching the paperwork is consent to save those fields.
+    Otherwise, confirm in natural language before overwriting existing warranty information.
+
+    Omit any field you did not extract; existing garage values for omitted fields are kept.
 
     The current vehicle is selected automatically — do not pass a vehicle id.
 

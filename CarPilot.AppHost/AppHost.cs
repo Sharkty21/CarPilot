@@ -32,8 +32,10 @@ var avatarsBucket = rustfs.AddBucket("avatars");
 
 var server = builder.AddProject<Projects.CarPilot_Server>("server")
     .WithReference(carpilotDb)
-    .WithReference(documentsBucket)
-    .WithReference(avatarsBucket)
+    // AddBucket names resources "{parent}-{bucket}" (rustfs-documents). Alias so
+    // FileUploadService can keep using GetConnectionString("documents" / "avatars").
+    .WithReference(documentsBucket, connectionName: "documents")
+    .WithReference(avatarsBucket, connectionName: "avatars")
     .WaitFor(carpilotDb)
     .WaitFor(rustfs)
     .WithEnvironment("Auth__JwtIssuer", "carpilot")

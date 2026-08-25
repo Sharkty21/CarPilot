@@ -2,7 +2,7 @@
 
 **Live demo:** [https://server.icymoss-21622c0d.eastus.azurecontainerapps.io](https://server.icymoss-21622c0d.eastus.azurecontainerapps.io)
 
-CarPilot is a personal vehicle garage: keep maintenance, warranty, insurance, and finance records in one place, then ask an AI assistant about them. The assistant can search your (redacted) documents, look things up on the web, and write garage records back through the API as the signed-in user.
+CarPilot is a personal vehicle garage: keep maintenance, warranty, insurance, and finance records in one place, then ask an AI assistant about them. The assistant can search your (redacted) documents, look things up on the web, file an attached document onto insurance / warranty / finance, and write garage records back through the API as the signed-in user.
 
 ## Why this shape
 
@@ -49,9 +49,9 @@ flowchart LR
   LangGraph --> LangSmith
 ```
 
-**Request path for chat:** the browser talks only to the .NET BFF. `POST /api/vehicles/{id}/assistant/ask/stream` proxies SSE to `carpilot-ai`. The AI service forwards the caller’s JWT on tool calls so garage writes stay scoped to that user.
+**Request path for chat:** the browser talks only to the .NET BFF. `POST /api/vehicles/{id}/assistant/ask/stream` accepts JSON or **multipart** (question + files). The BFF extracts text from attachments, **stages the bytes** for later filing, then proxies SSE to `carpilot-ai` `/chat/stream`. The AI service forwards the caller’s JWT on tool calls so garage writes stay scoped to that user. `attach_document` commits a staged file onto insurance, warranty, or finance through the same upload path as the UI.
 
-**Ingestion (fail closed):** upload original file → private bucket → extract text → Presidio PII redaction → chunk + embed into pgvector. Unredacted text is not embedded.
+**Ingestion (fail closed):** UI and `attach_document` store one original in the private documents bucket and a `vehicle_documents` row. The BFF then POSTs the same bytes to `carpilot-ai` `POST /documents/ingest`, which extracts text, redacts PII with Presidio, and embeds into `ai_document_chunks`. If RAG ingest fails, the garage file still appears; unredacted text is never embedded. Chat and edit-sheet **autofill** remain a separate unredacted read (policy numbers have to be real) and do not write embeddings. Seed / demo docs still use `POST /documents/upload` (store original + index).
 
 Aspire’s AppHost is the local composition root (`CarPilot.AppHost/AppHost.cs`). It wires:
 
@@ -100,6 +100,8 @@ flowchart TD
     T4["maintenance CRUD"]
     T5["insurance get / update"]
     T6["warranty get / update"]
+    T7["finance get / update"]
+    T8["attach_document"]
   end
 
   agent -.-> State
@@ -199,7 +201,7 @@ More agent/RAG detail lives in [carpilot-ai/README.md](carpilot-ai/README.md).
 **BFF in ASP.NET — DI and layering.** Controllers stay thin: auth, vehicles, maintenance, conversations, and the assistant stream. They depend on interfaces registered in `Program.cs` (`AddScoped` for request-bound work, `AddSingleton` for S3):
 
 - **Controllers** — HTTP concerns (routes, status codes, binding). Example: `VehiclesController` / `AssistantController`.
-- **Services** — use cases and orchestration (`IGarageService`, `IAssistantService`, `IFileUploadService`). The assistant service proxies SSE and forwards the caller’s JWT; garage services enforce vehicle ownership via `ICurrentUser`.
+- **Services** — use cases and orchestration (`IGarageService`, `IAssistantService`, `IFileUploadService`, `IAiDocumentClient`, `IUploadStagingService`). The assistant service reads chat attachments, stages them, proxies SSE, and forwards the caller’s JWT; garage services enforce vehicle ownership via `ICurrentUser`.
 - **Repositories** — data access behind `IGarageRepository` / `EfGarageRepository` so EF Core does not leak into controllers.
 - **Cross-cutting** — `IObjectStorageService`, embedding/index helpers, JWT auth, and typed `HttpClient` for `carpilot-ai`.
 
@@ -207,7 +209,7 @@ That controller → service → repository split keeps authorization and persist
 
 **Python for the agent.** LangGraph, pgvector RAG, Presidio, and LangSmith are the usual Python stack. Aspire’s Python hosting (`WithUv`, health checks, references to Postgres, the BFF, and RustFS) keeps that service first-class beside .NET.
 
-**What the app is today.** A single-user garage (vehicles, maintenance, warranty, insurance, finance) plus an assistant that can RAG over uploaded docs, search the web, and CRUD records. Document ingest redacts PII before embeddings.
+**What the app is today.** A single-user garage (vehicles, maintenance, warranty, insurance, finance) plus an assistant that can RAG over uploaded docs, search the web, file chat attachments onto a section, and CRUD records (including finance). Document ingest redacts PII before embeddings.
 
 ## What I would improve with more time
 
