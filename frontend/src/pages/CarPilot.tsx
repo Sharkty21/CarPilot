@@ -40,7 +40,12 @@ const CarPilot = () => {
   const { selectedVehicle, isLoading, error } = useGarage();
   const [pendingRecordId, setPendingRecordId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const activeId = useActiveSection(SECTION_IDS, rootRef);
+  // Only bind the scroll spy once the section DOM is rendered. Using the vehicle
+  // id alone is not enough: it can be known while the loading UI is still up,
+  // so the effect would run with a null ref and never re-attach.
+  const sectionNavBindKey =
+    !isLoading && !error && selectedVehicle ? selectedVehicle.id : null;
+  const activeId = useActiveSection(SECTION_IDS, rootRef, sectionNavBindKey);
 
   const openRecord = useCallback((recordId: string) => {
     setPendingRecordId(recordId);
