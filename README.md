@@ -217,7 +217,26 @@ That controller → service → repository split keeps authorization and persist
 
 **API-first platform.** Move toward a more deliberate HTTP surface inspired by kits like [fullstackhero](https://fullstackhero.net/): **versioned routes** (`/api/v1/...`), shared **request/response contracts**, consistent **pagination**, and **base entities** for auditable records (created/updated by, timestamps, soft delete). Consider **[Finbuckle](https://www.finbuckle.com/MultiTenant)** (or equivalent) early if the product grows into fleet / multi-tenant garage ownership.
 
-**Observability & quality.** Richer **OpenTelemetry** across the BFF and `carpilot-ai` (traces, metrics, and baggage for `user_id` / `thread_id` / tool names), plus more **unit and integration tests** on both the .NET and Python sides—not only LangSmith tool-routing evals.
+**Observability.** Richer **OpenTelemetry** across the BFF and `carpilot-ai` (traces, metrics, and baggage for `user_id` / `thread_id` / tool names) so a failed tool call or slow RAG retrieval is diagnosable without grepping three log streams.
+
+**Robust tests (Testing Trophy).** Lean on [Kent C. Dodds’ Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications): write tests, not too many, mostly **integration**—maximize confidence per hour, and prefer tests that resemble how the software is used over ones that pin implementation details. Today we have light `pytest` coverage and LangSmith full-graph tool-routing evals; with more time I’d fill the trophy deliberately across the BFF, React client, and `carpilot-ai`:
+
+| Layer | Role | CarPilot examples |
+| --- | --- | --- |
+| **Static** | Cheap confidence before runtime | TypeScript + ESLint on `frontend`; nullable reference types / analyzers on `CarPilot.Server`; Ruff (and optionally mypy) on `carpilot-ai`. |
+| **Unit** | Isolated logic with collaborators mocked | `GarageMapper` mapping; ownership guards on garage services with a fake `ICurrentUser`; Presidio / redaction helpers; pure chunking or tool-argument parsers in the agent. |
+| **Integration** (bulk of effort) | Several real units working together; mock only the network edge | `WebApplicationFactory` + Testcontainers Postgres: create a vehicle as user A, assert user B gets 404/403; `AssistantService` staging an upload then proxying a fake SSE upstream; React Testing Library + MSW for “add maintenance record” without a browser; pytest for extract → redact → embed where only the embedding HTTP client is stubbed. |
+| **End-to-end** | Few, high-value paths with as little mocking as practical | Playwright: demo login → open a vehicle → ask the assistant → assert a streamed answer / citation; keep expanding LangSmith full-graph evals (login + live `/chat` + expected tools) as the “agent E2E” layer. |
+
+Concrete scenarios I’d prioritize next:
+
+1. **Ownership & auth (integration).** Seed two users; exercise vehicle/maintenance/document routes through the real DI graph so a regression that drops `ICurrentUser` filtering fails loudly.
+2. **Document ingest gate (integration).** Upload (or fixture) text with PII; assert redacted chunks land in the index and unredacted text never reaches the embed client.
+3. **Assistant BFF stream (integration).** Multipart ask with an attachment: staging cache, forwarded JWT, and SSE event shape—without requiring a live LLM.
+4. **Garage UI happy path (integration UI).** Render the vehicle detail / maintenance form with MSW-backed APIs; assert what the user sees after submit, not internal React state.
+5. **Smoke E2E + agent evals.** One Playwright path through login → garage → chat; grow the existing `carpilot-agent-tool-routing` dataset for “what’s my car worth?”, file-to-section, and CRUD tool choices.
+
+That mix keeps static/unit checks fast in CI, puts most assertions where layers meet (ownership, PII gate, SSE contract), and reserves slow E2E/eval budget for journeys that only earn confidence under real (or near-real) composition.
 
 **Code organization.** Push the .NET side further toward clearer Application / Infrastructure boundaries (use-case handlers, pipeline behaviors) so garage and assistant logic stay testable without HTTP or EF. The React app would get the same treatment: clearer feature folders, stronger TanStack Query caching, and less provider-level coupling.
 
